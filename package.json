@@ -1,0 +1,63 @@
+{
+  "name": "@jaunty/extension-model",
+  "version": "0.0.0",
+  "description": "jaunty extension",
+  "keywords": [
+    "jaunty",
+    "extension",
+    "model"
+  ],
+  "main": "dist/extension-model.cjs.js",
+  "jsnext:main": "src/extension-model.js",
+  "scripts": {
+    "build": "rollup -c",
+    "prepublish": "npm run build",
+    "test": "karma start",
+    "test-server": "nodemon test/server.js",
+    "test-methods": "karma start --file=test/methods.spec.js",
+    "test-basic": "karma start --file=test/basic.spec.js",
+    "test-validation": "karma start --file=test/validation.spec.js",
+    "lint": "eslint ./ --cache --ignore-path .eslintignore",
+    "precommit-msg": "echo 'Pre-commit checks...' && exit 0"
+  },
+  "pre-commit": [
+    "precommit-msg",
+    "lint"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:LvChengbin/jaunty-extension-model.git"
+  },
+  "author": "LvChengbin",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/cli": "^7.0.0-beta.39",
+    "@babel/core": "^7.0.0-beta.39",
+    "@babel/preset-env": "^7.0.0-beta.39",
+    "@lvchengbin/koa-router": "0.0.5",
+    "eslint": "^4.15.0",
+    "jasmine-core": "^2.8.0",
+    "karma": "^2.0.0",
+    "karma-chrome-launcher": "^2.2.0",
+    "karma-jasmine": "^1.1.1",
+    "karma-rollup-preprocessor": "^5.1.1",
+    "koa": "^2.5.0",
+    "koa-body": "^2.5.0",
+    "koa-logger": "^3.2.0",
+    "nodemon": "^1.17.3",
+    "optimist": "^0.6.1",
+    "pre-commit": "^1.2.2",
+    "puppeteer": "^1.0.0",
+    "rollup": "^0.54.0",
+    "rollup-plugin-babel": "^4.0.0-beta.1",
+    "rollup-plugin-node-resolve": "^3.0.2"
+  },
+  "dependencies": {
+    "@jaunty/error": "^0.0.1",
+    "@jaunty/extension": "^0.0.6",
+    "@lvchengbin/biu": "^0.1.5",
+    "@lvchengbin/is": "0.0.9",
+    "@lvchengbin/observer": "0.1.1",
+    "@lvchengbin/promise": "^1.1.0"
+  }
+}
