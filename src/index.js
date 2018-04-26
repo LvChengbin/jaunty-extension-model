@@ -12,7 +12,7 @@ import Error from '@jaunty/error';
 
 class Model extends Extension {
     constructor( init, config = {} ) {
-        super( init, Object.assign( { type : 'model' }, config ) );
+        super( init, Object.assign( { type : 'extension-model' }, config ) );
 
         this.validators || ( this.validators = {} );
         this.validations || ( this.validations = {} );
@@ -41,25 +41,9 @@ class Model extends Extension {
         this.$on( 'ready', () => {
             this.$props.$ready = true;
         } );
-
-        return Promise.all( [
-            this.__initValidations(),
-            this.__initData().then( data => {
-                this.$assign( data );
-                try {
-                    this.__initial = JSON.stringify( this.$data );
-                } catch( e ) {
-                    console.warn( e );
-                }
-            } ).catch( reason => {
-                const error = new Error( 'Failed to initialize model data.', { reason } );
-                this.$props.$failed = error;
-                throw error;
-            } )
-        ] );
     }
 
-    __initData() {
+    __loadData() {
         if( this.url ) {
             return biu.get( this.url, {
                 params : this.params || null,
@@ -70,6 +54,21 @@ class Model extends Extension {
             return Promise.resolve( this.data() );
         }
         return Promise.resolve( this.data || {} );
+    }
+
+    __initData() {
+        return this.__loadData().then( data => {
+            this.$assign( data );
+            try {
+                this.__initial = JSON.stringify( this.$data );
+            } catch( e ) {
+                console.warn( e );
+            }
+        } ).catch( reason => {
+            const error = new Error( 'Failed to initialize model data.', { reason } );
+            this.$props.$failed = error;
+            throw error;
+        } );
     }
 
     __initValidations() {
@@ -285,7 +284,7 @@ class Model extends Extension {
     }
 
     $refresh() {
-        return this.__initData().then( data => {
+        return this.__loadData().then( data => {
             this.$assign( data );
             try {
                 this.__initial = JSON.stringify( this.$data );

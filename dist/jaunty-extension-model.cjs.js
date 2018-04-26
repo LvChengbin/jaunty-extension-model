@@ -10,7 +10,7 @@ var regexp = reg => ({}).toString.call( reg ) === '[object RegExp]';
 
 class EventEmitter {
     constructor() {
-        this.__listeners = {};
+        this.__listeners = new Map();
     }
 
     alias( name, to ) {
@@ -19,7 +19,13 @@ class EventEmitter {
 
     on( evt, handler ) {
         const listeners = this.__listeners;
-        listeners[ evt ] ? listeners[ evt ].push( handler ) : ( listeners[ evt ] = [ handler ] );
+        let handlers = listeners.get( evt );
+
+        if( !handlers ) {
+            handlers = new Set();
+            listeners.set( evt, handlers );
+        }
+        handlers.add( handler );
         return this;
     }
 
@@ -32,35 +38,16 @@ class EventEmitter {
     }
 
     removeListener( evt, handler ) {
-        var listeners = this.__listeners,
-            handlers = listeners[ evt ];
-
-        if( !handlers || ! handlers.length ) {
-            return this;
-        }
-
-        for( let i = 0; i < handlers.length; i += 1 ) {
-            handlers[ i ] === handler && ( handlers[ i ] = null );
-        }
-
-        setTimeout( () => {
-            for( let i = 0; i < handlers.length; i += 1 ) {
-                handlers[ i ] || handlers.splice( i--, 1 );
-            }
-        }, 0 );
-
+        const listeners = this.__listeners;
+        const handlers = listeners.get( evt );
+        handlers && handlers.delete( handler );
         return this;
     }
 
     emit( evt, ...args ) {
-        const handlers = this.__listeners[ evt ];
-        if( handlers ) {
-            for( let i = 0, l = handlers.length; i < l; i += 1 ) {
-                handlers[ i ] && handlers[ i ].call( this, ...args );
-            }
-            return true;
-        }
-        return false;
+        const handlers = this.__listeners.get( evt );
+        if( !handlers ) return false;
+        handlers.forEach( handler => handler.call( this, ...args ) );
     }
 
     removeAllListeners( rule ) {
@@ -77,12 +64,11 @@ class EventEmitter {
         }
 
         const listeners = this.__listeners;
-        for( let attr in listeners ) {
-            if( checker( attr ) ) {
-                listeners[ attr ] = null;
-                delete listeners[ attr ];
-            }
-        }
+
+        listeners.forEach( ( value, key ) => {
+            checker( key ) && listeners.delete( key );
+        } );
+        return this;
     }
 }
 
@@ -597,7 +583,85 @@ Sequence.Error = class {
     }
 };
 
-class Resource extends EventEmitter {
+class EventEmitter$2 {
+    constructor() {
+        this.__listeners = {};
+    }
+
+    alias( name, to ) {
+        this[ name ] = this[ to ].bind( this );
+    }
+
+    on( evt, handler ) {
+        const listeners = this.__listeners;
+        listeners[ evt ] ? listeners[ evt ].push( handler ) : ( listeners[ evt ] = [ handler ] );
+        return this;
+    }
+
+    once( evt, handler ) {
+        const _handler = ( ...args ) => {
+            handler.apply( this, args );
+            this.removeListener( evt, _handler );
+        };
+        return this.on( evt, _handler );
+    }
+
+    removeListener( evt, handler ) {
+        var listeners = this.__listeners,
+            handlers = listeners[ evt ];
+
+        if( !handlers || ! handlers.length ) {
+            return this;
+        }
+
+        for( let i = 0; i < handlers.length; i += 1 ) {
+            handlers[ i ] === handler && ( handlers[ i ] = null );
+        }
+
+        setTimeout( () => {
+            for( let i = 0; i < handlers.length; i += 1 ) {
+                handlers[ i ] || handlers.splice( i--, 1 );
+            }
+        }, 0 );
+
+        return this;
+    }
+
+    emit( evt, ...args ) {
+        const handlers = this.__listeners[ evt ];
+        if( handlers ) {
+            for( let i = 0, l = handlers.length; i < l; i += 1 ) {
+                handlers[ i ] && handlers[ i ].call( this, ...args );
+            }
+            return true;
+        }
+        return false;
+    }
+
+    removeAllListeners( rule ) {
+        let checker;
+        if( isString( rule ) ) {
+            checker = name => rule === name;
+        } else if( isFunction( rule ) ) {
+            checker = rule;
+        } else if( regexp( rule ) ) {
+            checker = name => {
+                rule.lastIndex = 0;
+                return rule.test( name );
+            };
+        }
+
+        const listeners = this.__listeners;
+        for( let attr in listeners ) {
+            if( checker( attr ) ) {
+                listeners[ attr ] = null;
+                delete listeners[ attr ];
+            }
+        }
+    }
+}
+
+class Resource extends EventEmitter$2 {
     constructor( resource, options = {} ) {
         super();
 
@@ -693,7 +757,10 @@ class Base extends EventEmitter {
             () => this.__init(),
             () => {
                 const list = [];
-                for( const property in this ) {
+                const properties = Object.getOwnPropertyNames( Object.getPrototypeOf( this ) );
+                properties.push( ...Object.keys( this ) );
+
+                for( const property of properties ) {
                     if( /^__init[A-Z].*/.test( property ) && isFunction( this[ property ] ) ) {
                         list.push( this[ property ]() );
                     }
@@ -814,7 +881,7 @@ var integer = ( n, strict = false ) => {
     return false;
 }
 
-class EventEmitter$2 {
+class EventEmitter$3 {
     constructor() {
         this.__listeners = new Map();
     }
@@ -878,7 +945,7 @@ class EventEmitter$2 {
     }
 }
 
-const eventcenter = new EventEmitter$2();
+const eventcenter = new EventEmitter$3();
 
 const collector = {
     records : [],
@@ -915,7 +982,7 @@ function isSubset( obj, container ) {
     return false;
 }
 
-const ec = new EventEmitter$2();
+const ec = new EventEmitter$3();
 
 /**
  * caches for storing expressions.
@@ -3082,7 +3149,7 @@ var biu = { request, get: get$1, post, ajax, jsonp };
 
 class Model extends Extension {
     constructor( init, config = {} ) {
-        super( init, Object.assign( { type : 'model' }, config ) );
+        super( init, Object.assign( { type : 'extension-model' }, config ) );
 
         this.validators || ( this.validators = {} );
         this.validations || ( this.validations = {} );
@@ -3111,25 +3178,9 @@ class Model extends Extension {
         this.$on( 'ready', () => {
             this.$props.$ready = true;
         } );
-
-        return Promise$1.all( [
-            this.__initValidations(),
-            this.__initData().then( data => {
-                this.$assign( data );
-                try {
-                    this.__initial = JSON.stringify( this.$data );
-                } catch( e ) {
-                    console.warn( e );
-                }
-            } ).catch( reason => {
-                const error = new Error( 'Failed to initialize model data.', { reason } );
-                this.$props.$failed = error;
-                throw error;
-            } )
-        ] );
     }
 
-    __initData() {
+    __loadData() {
         if( this.url ) {
             return biu.get( this.url, {
                 params : this.params || null,
@@ -3140,6 +3191,21 @@ class Model extends Extension {
             return Promise$1.resolve( this.data() );
         }
         return Promise$1.resolve( this.data || {} );
+    }
+
+    __initData() {
+        return this.__loadData().then( data => {
+            this.$assign( data );
+            try {
+                this.__initial = JSON.stringify( this.$data );
+            } catch( e ) {
+                console.warn( e );
+            }
+        } ).catch( reason => {
+            const error = new Error( 'Failed to initialize model data.', { reason } );
+            this.$props.$failed = error;
+            throw error;
+        } );
     }
 
     __initValidations() {
@@ -3355,7 +3421,7 @@ class Model extends Extension {
     }
 
     $refresh() {
-        return this.__initData().then( data => {
+        return this.__loadData().then( data => {
             this.$assign( data );
             try {
                 this.__initial = JSON.stringify( this.$data );

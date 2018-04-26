@@ -129,7 +129,7 @@ function () {
   function EventEmitter() {
     _classCallCheck(this, EventEmitter);
 
-    this.__listeners = {};
+    this.__listeners = new Map();
   }
 
   _createClass(EventEmitter, [{
@@ -141,7 +141,14 @@ function () {
     key: "on",
     value: function on(evt, handler) {
       var listeners = this.__listeners;
-      listeners[evt] ? listeners[evt].push(handler) : listeners[evt] = [handler];
+      var handlers = listeners.get(evt);
+
+      if (!handlers) {
+        handlers = new Set();
+        listeners.set(evt, handlers);
+      }
+
+      handlers.add(handler);
       return this;
     }
   }, {
@@ -164,44 +171,26 @@ function () {
   }, {
     key: "removeListener",
     value: function removeListener(evt, handler) {
-      var listeners = this.__listeners,
-          handlers = listeners[evt];
-
-      if (!handlers || !handlers.length) {
-        return this;
-      }
-
-      for (var i = 0; i < handlers.length; i += 1) {
-        handlers[i] === handler && (handlers[i] = null);
-      }
-
-      setTimeout(function () {
-        for (var _i = 0; _i < handlers.length; _i += 1) {
-          handlers[_i] || handlers.splice(_i--, 1);
-        }
-      }, 0);
+      var listeners = this.__listeners;
+      var handlers = listeners.get(evt);
+      handlers && handlers.delete(handler);
       return this;
     }
   }, {
     key: "emit",
     value: function emit(evt) {
-      var handlers = this.__listeners[evt];
+      var _this2 = this;
 
-      if (handlers) {
-        for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-          args[_key2 - 1] = arguments[_key2];
-        }
-
-        for (var i = 0, l = handlers.length; i < l; i += 1) {
-          var _handlers$i;
-
-          handlers[i] && (_handlers$i = handlers[i]).call.apply(_handlers$i, [this].concat(args));
-        }
-
-        return true;
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+        args[_key2 - 1] = arguments[_key2];
       }
 
-      return false;
+      var handlers = this.__listeners.get(evt);
+
+      if (!handlers) return false;
+      handlers.forEach(function (handler) {
+        return handler.call.apply(handler, [_this2].concat(args));
+      });
     }
   }, {
     key: "removeAllListeners",
@@ -222,13 +211,10 @@ function () {
       }
 
       var listeners = this.__listeners;
-
-      for (var attr in listeners) {
-        if (checker(attr)) {
-          listeners[attr] = null;
-          delete listeners[attr];
-        }
-      }
+      listeners.forEach(function (value, key) {
+        checker(key) && listeners.delete(key);
+      });
+      return this;
     }
   }]);
 
@@ -918,6 +904,118 @@ function () {
   return _class;
 }();
 
+var EventEmitter$2 =
+/*#__PURE__*/
+function () {
+  function EventEmitter() {
+    _classCallCheck(this, EventEmitter);
+
+    this.__listeners = {};
+  }
+
+  _createClass(EventEmitter, [{
+    key: "alias",
+    value: function alias(name, to) {
+      this[name] = this[to].bind(this);
+    }
+  }, {
+    key: "on",
+    value: function on(evt, handler) {
+      var listeners = this.__listeners;
+      listeners[evt] ? listeners[evt].push(handler) : listeners[evt] = [handler];
+      return this;
+    }
+  }, {
+    key: "once",
+    value: function once(evt, handler) {
+      var _this = this;
+
+      var _handler = function _handler() {
+        for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+          args[_key] = arguments[_key];
+        }
+
+        handler.apply(_this, args);
+
+        _this.removeListener(evt, _handler);
+      };
+
+      return this.on(evt, _handler);
+    }
+  }, {
+    key: "removeListener",
+    value: function removeListener(evt, handler) {
+      var listeners = this.__listeners,
+          handlers = listeners[evt];
+
+      if (!handlers || !handlers.length) {
+        return this;
+      }
+
+      for (var i = 0; i < handlers.length; i += 1) {
+        handlers[i] === handler && (handlers[i] = null);
+      }
+
+      setTimeout(function () {
+        for (var _i = 0; _i < handlers.length; _i += 1) {
+          handlers[_i] || handlers.splice(_i--, 1);
+        }
+      }, 0);
+      return this;
+    }
+  }, {
+    key: "emit",
+    value: function emit(evt) {
+      var handlers = this.__listeners[evt];
+
+      if (handlers) {
+        for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+          args[_key2 - 1] = arguments[_key2];
+        }
+
+        for (var i = 0, l = handlers.length; i < l; i += 1) {
+          var _handlers$i;
+
+          handlers[i] && (_handlers$i = handlers[i]).call.apply(_handlers$i, [this].concat(args));
+        }
+
+        return true;
+      }
+
+      return false;
+    }
+  }, {
+    key: "removeAllListeners",
+    value: function removeAllListeners(rule) {
+      var checker;
+
+      if (isString(rule)) {
+        checker = function checker(name) {
+          return rule === name;
+        };
+      } else if (isFunction(rule)) {
+        checker = rule;
+      } else if (regexp(rule)) {
+        checker = function checker(name) {
+          rule.lastIndex = 0;
+          return rule.test(name);
+        };
+      }
+
+      var listeners = this.__listeners;
+
+      for (var attr in listeners) {
+        if (checker(attr)) {
+          listeners[attr] = null;
+          delete listeners[attr];
+        }
+      }
+    }
+  }]);
+
+  return EventEmitter;
+}();
+
 var Resource =
 /*#__PURE__*/
 function (_EventEmitter) {
@@ -978,7 +1076,7 @@ function (_EventEmitter) {
   }]);
 
   return Resource;
-}(EventEmitter);
+}(EventEmitter$2);
 
 var Error$1 =
 /*#__PURE__*/
@@ -1063,27 +1161,19 @@ function (_EventEmitter) {
         return _this3.__init();
       }, function () {
         var list = [];
-
-        for (var property in _this3) {
-          if (/^__init[A-Z].*/.test(property) && isFunction(_this3[property])) {
-            list.push(_this3[property]());
-          }
-        }
-
-        return Promise$1.all(list);
-      }, function () {
-        return isFunction(_this3.init) ? _this3.init() : true;
-      }, function () {
-        var list = [];
+        var properties = Object.getOwnPropertyNames(Object.getPrototypeOf(_this3));
+        properties.push.apply(properties, _toConsumableArray(Object.keys(_this3)));
         var _iteratorNormalCompletion = true;
         var _didIteratorError = false;
         var _iteratorError = undefined;
 
         try {
-          for (var _iterator = _this3.__resources[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-            var _resource = _step.value;
-            resources.push(_resource.ready());
-            _resource.async || list.push(_resource.ready());
+          for (var _iterator = properties[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+            var _property = _step.value;
+
+            if (/^__init[A-Z].*/.test(_property) && isFunction(_this3[_property])) {
+              list.push(_this3[_property]());
+            }
           }
         } catch (err) {
           _didIteratorError = true;
@@ -1096,6 +1186,36 @@ function (_EventEmitter) {
           } finally {
             if (_didIteratorError) {
               throw _iteratorError;
+            }
+          }
+        }
+
+        return Promise$1.all(list);
+      }, function () {
+        return isFunction(_this3.init) ? _this3.init() : true;
+      }, function () {
+        var list = [];
+        var _iteratorNormalCompletion2 = true;
+        var _didIteratorError2 = false;
+        var _iteratorError2 = undefined;
+
+        try {
+          for (var _iterator2 = _this3.__resources[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+            var _resource = _step2.value;
+            resources.push(_resource.ready());
+            _resource.async || list.push(_resource.ready());
+          }
+        } catch (err) {
+          _didIteratorError2 = true;
+          _iteratorError2 = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
+              _iterator2.return();
+            }
+          } finally {
+            if (_didIteratorError2) {
+              throw _iteratorError2;
             }
           }
         }
@@ -1252,7 +1372,7 @@ var integer = (function (n) {
   return false;
 });
 
-var EventEmitter$2 =
+var EventEmitter$3 =
 /*#__PURE__*/
 function () {
   function EventEmitter() {
@@ -1350,7 +1470,7 @@ function () {
   return EventEmitter;
 }();
 
-var eventcenter = new EventEmitter$2();
+var eventcenter = new EventEmitter$3();
 var collector = {
   records: [],
   collecting: false,
@@ -1388,7 +1508,7 @@ function isSubset(obj, container) {
   return false;
 }
 
-var ec = new EventEmitter$2();
+var ec = new EventEmitter$3();
 /**
  * caches for storing expressions.
  * Map( {
@@ -4413,7 +4533,7 @@ function (_Extension) {
     _classCallCheck(this, Model);
 
     _this = _possibleConstructorReturn(this, (Model.__proto__ || Object.getPrototypeOf(Model)).call(this, init, Object.assign({
-      type: 'model'
+      type: 'extension-model'
     }, config)));
     _this.validators || (_this.validators = {});
     _this.validations || (_this.validations = {});
@@ -4445,25 +4565,10 @@ function (_Extension) {
       this.$on('ready', function () {
         _this2.$props.$ready = true;
       });
-      return Promise$1.all([this.__initValidations(), this.__initData().then(function (data) {
-        _this2.$assign(data);
-
-        try {
-          _this2.__initial = JSON.stringify(_this2.$data);
-        } catch (e) {
-          console.warn(e);
-        }
-      }).catch(function (reason) {
-        var error = new Error$1('Failed to initialize model data.', {
-          reason: reason
-        });
-        _this2.$props.$failed = error;
-        throw error;
-      })]);
     }
   }, {
-    key: "__initData",
-    value: function __initData() {
+    key: "__loadData",
+    value: function __loadData() {
       if (this.url) {
         return biu.get(this.url, {
           params: this.params || null,
@@ -4478,9 +4583,30 @@ function (_Extension) {
       return Promise$1.resolve(this.data || {});
     }
   }, {
+    key: "__initData",
+    value: function __initData() {
+      var _this3 = this;
+
+      return this.__loadData().then(function (data) {
+        _this3.$assign(data);
+
+        try {
+          _this3.__initial = JSON.stringify(_this3.$data);
+        } catch (e) {
+          console.warn(e);
+        }
+      }).catch(function (reason) {
+        var error = new Error$1('Failed to initialize model data.', {
+          reason: reason
+        });
+        _this3.$props.$failed = error;
+        throw error;
+      });
+    }
+  }, {
     key: "__initValidations",
     value: function __initValidations() {
-      var _this3 = this;
+      var _this4 = this;
 
       var promises = [];
       var validators = this.validators;
@@ -4498,10 +4624,10 @@ function (_Extension) {
         var item = validations[key];
         $validation[key] = defaultValidationProps();
         item.path || (item.path = key);
-        item.$validator = _this3.__makeValidator(key, item);
+        item.$validator = _this4.__makeValidator(key, item);
         if (!item.on) item.on = 'submitted';
 
-        _this3.$watch(function () {
+        _this4.$watch(function () {
           var rules = Object.keys($validation[key].$errors);
 
           for (var _i = 0; _i < rules.length; _i++) {
@@ -4514,7 +4640,7 @@ function (_Extension) {
 
           return false;
         }, function (val) {
-          var $validation = _this3.$props.$validation;
+          var $validation = _this4.$props.$validation;
           $validation[key].$error = val;
 
           if (val === true) {
@@ -4539,15 +4665,15 @@ function (_Extension) {
 
           case 'change':
           case 1:
-            _this3.$watch(item.path, item.$validator);
+            _this4.$watch(item.path, item.$validator);
 
             break;
 
           case 'submitted':
           case 2:
           default:
-            _this3.$watch(item.path, function () {
-              if (_this3.__triedSubmitting) {
+            _this4.$watch(item.path, function () {
+              if (_this4.__triedSubmitting) {
                 item.$validator.apply(item, arguments);
               }
             });
@@ -4565,14 +4691,14 @@ function (_Extension) {
   }, {
     key: "__makeValidator",
     value: function __makeValidator(name, bound) {
-      var _this4 = this;
+      var _this5 = this;
 
       return function (val) {
         if (!isUndefined(val)) {
-          val = Observer.calc(_this4.$data, bound.path);
+          val = Observer.calc(_this5.$data, bound.path);
         }
 
-        var props = _this4.$props;
+        var props = _this5.$props;
         var validation = props.$validation;
         var errors = validation[name].$errors;
         var steps = [];
@@ -4582,8 +4708,8 @@ function (_Extension) {
           var func = void 0;
           var args = [val];
 
-          if (isFunction(_this4.$validators[key])) {
-            func = _this4.$validators[key];
+          if (isFunction(_this5.$validators[key])) {
+            func = _this5.$validators[key];
             args.push.apply(args, _toConsumableArray(isArray$1(rule) ? rule : [rule]));
           } else {
             func = rule;
@@ -4593,7 +4719,7 @@ function (_Extension) {
             steps.push(function () {
               var _func;
 
-              var result = (_func = func).call.apply(_func, [_this4].concat(args));
+              var result = (_func = func).call.apply(_func, [_this5].concat(args));
 
               if (isPromise(result)) {
                 result.then(function (v) {
@@ -4668,11 +4794,11 @@ function (_Extension) {
   }, {
     key: "$validator",
     value: function $validator(name, handler) {
-      var _this5 = this;
+      var _this6 = this;
 
       if (isPromise(handler)) {
         return handler.then(function (res) {
-          _this5.$validators[name] = isFunction(res.expose) ? res.expose() : res;
+          _this6.$validators[name] = isFunction(res.expose) ? res.expose() : res;
         });
       }
 
@@ -4686,14 +4812,14 @@ function (_Extension) {
   }, {
     key: "$watch",
     value: function $watch(exp, handler) {
-      var _this6 = this;
+      var _this7 = this;
 
       var wrapedHandler = function wrapedHandler() {
         for (var _len = arguments.length, args = new Array(_len), _key2 = 0; _key2 < _len; _key2++) {
           args[_key2] = arguments[_key2];
         }
 
-        handler.call.apply(handler, [_this6].concat(args));
+        handler.call.apply(handler, [_this7].concat(args));
       };
 
       this.__watch_handlers.set(handler, wrapedHandler);
@@ -4751,23 +4877,23 @@ function (_Extension) {
   }, {
     key: "$refresh",
     value: function $refresh() {
-      var _this7 = this;
+      var _this8 = this;
 
-      return this.__initData().then(function (data) {
-        _this7.$assign(data);
+      return this.__loadData().then(function (data) {
+        _this8.$assign(data);
 
         try {
-          _this7.__initial = JSON.stringify(_this7.$data);
+          _this8.__initial = JSON.stringify(_this8.$data);
         } catch (e) {
           console.warn(e);
         }
       }).catch(function (reason) {
         var error = new Error$1('Failed while refreshing data', {
           reason: reason,
-          model: _this7,
+          model: _this8,
           name: 'JauntyExtensionModelError'
         });
-        _this7.$props.$failed = error;
+        _this8.$props.$failed = error;
         throw error;
       });
     }
