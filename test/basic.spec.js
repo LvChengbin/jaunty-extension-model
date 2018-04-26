@@ -1,3 +1,4 @@
+import Promise from '@lvchengbin/promise';
 import is from '@lvchengbin/is';
 import Error from '@jaunty/error';
 import Model from '../src/index';
@@ -188,4 +189,4 @@ describe( 'Jaunty Model Base', () => {
         } );
 
     } );
-e );
+} );

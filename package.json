@@ -13,7 +13,7 @@
     "build": "rollup -c",
     "prepublish": "npm run build",
     "test": "karma start",
-    "test-server": "nodemon test/server.js",
+    "test-server": "nodemon test/server.js --watch test/server.js",
     "test-methods": "karma start --file=test/methods.spec.js",
     "test-basic": "karma start --file=test/basic.spec.js",
     "test-validation": "karma start --file=test/validation.spec.js",
@@ -57,7 +57,8 @@
     "@jaunty/extension": "^0.0.6",
     "@lvchengbin/biu": "^0.1.5",
     "@lvchengbin/is": "0.0.9",
-    "@lvchengbin/observer": "0.1.1",
-    "@lvchengbin/promise": "^1.1.0"
+    "@lvchengbin/observer": "0.1.2",
+    "@lvchengbin/promise": "^1.1.4",
+    "@lvchengbin/sequence": "^1.0.1"
   }
 }

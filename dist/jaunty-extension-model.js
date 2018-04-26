@@ -164,9 +164,9 @@ Promise$1.all = function( promises ) {
             }
             p.then( value => {
                 res[ i ] = value;
-                if( --remaining === 0 ) {
-                    resolve( res );
-                }
+                setTimeout( () => {
+                    if( --remaining === 0 ) resolve( res );
+                }, 0 );
             }, reason => {
                 if( !rejected ) {
                     reject( reason );
@@ -320,6 +320,70 @@ function promiseReject( promise, value ) {
     promiseExecute( promise );
 }
 
+class EventEmitter$1 {
+    constructor() {
+        this.__listeners = new Map();
+    }
+
+    alias( name, to ) {
+        this[ name ] = this[ to ].bind( this );
+    }
+
+    on( evt, handler ) {
+        const listeners = this.__listeners;
+        let handlers = listeners.get( evt );
+
+        if( !handlers ) {
+            handlers = new Set();
+            listeners.set( evt, handlers );
+        }
+        handlers.add( handler );
+        return this;
+    }
+
+    once( evt, handler ) {
+        const _handler = ( ...args ) => {
+            handler.apply( this, args );
+            this.removeListener( evt, _handler );
+        };
+        return this.on( evt, _handler );
+    }
+
+    removeListener( evt, handler ) {
+        const listeners = this.__listeners;
+        const handlers = listeners.get( evt );
+        handlers && handlers.delete( handler );
+        return this;
+    }
+
+    emit( evt, ...args ) {
+        const handlers = this.__listeners.get( evt );
+        if( !handlers ) return false;
+        handlers.forEach( handler => handler.call( this, ...args ) );
+    }
+
+    removeAllListeners( rule ) {
+        let checker;
+        if( isString( rule ) ) {
+            checker = name => rule === name;
+        } else if( isFunction( rule ) ) {
+            checker = rule;
+        } else if( regexp( rule ) ) {
+            checker = name => {
+                rule.lastIndex = 0;
+                return rule.test( name );
+            };
+        }
+
+        const listeners = this.__listeners;
+
+        listeners.forEach( ( value, key ) => {
+            checker( key ) && listeners.delete( key );
+        } );
+        return this;
+    }
+}
+
 function isUndefined() {
     return arguments.length > 0 && typeof arguments[ 0 ] === 'undefined';
 }
@@ -339,7 +403,7 @@ function config() {
  * new Sequence( [] )
  */
 
-class Sequence extends EventEmitter {
+class Sequence extends EventEmitter$1 {
     constructor( steps, options = {} ) {
         super();
 
@@ -754,7 +818,7 @@ var integer = ( n, strict = false ) => {
     return false;
 }
 
-class EventEmitter$1 {
+class EventEmitter$2 {
     constructor() {
         this.__listeners = new Map();
     }
@@ -818,7 +882,7 @@ class EventEmitter$1 {
     }
 }
 
-const eventcenter = new EventEmitter$1();
+const eventcenter = new EventEmitter$2();
 
 const collector = {
     records : [],
@@ -855,7 +919,7 @@ function isSubset( obj, container ) {
     return false;
 }
 
-const ec = new EventEmitter$1();
+const ec = new EventEmitter$2();
 
 /**
  * caches for storing expressions.
@@ -1155,6 +1219,10 @@ function unwatch( observer, exp, handler ) {
 
     map.delete( handler );
     callbacks.delete( list[ 0 ].callback );
+}
+
+function calc( observer, exp ) {
+    return expression( exp )( observer );
 }
 
 /** 
@@ -1505,6 +1573,10 @@ const Observer = {
 
     unwatch( observer, exp, handler ) {
         unwatch( observer, exp, handler );
+    },
+
+    calc( observer, exp ) {
+        return calc( observer, exp );
     },
 
     replace( observer, data ) {
@@ -1877,7 +1949,7 @@ function mergeParams( dest, src ) {
 
 var isArguments = obj => ({}).toString.call( obj ) === '[object Arguments]';
 
-var array = obj => Array.isArray( obj );
+var isArray$1 = obj => Array.isArray( obj );
 
 var arrowFunction = fn => {
     if( !isFunction( fn ) ) return false;
@@ -1893,7 +1965,7 @@ var email = str => /^(([^#$%&*!+-/=?^`{|}~<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\
 var isObject = obj => obj && typeof obj === 'object' && !Array.isArray( obj );
 
 var empty = obj => {
-    if( array( obj ) || isString( obj ) ) {
+    if( isArray$1( obj ) || isString( obj ) ) {
         return !obj.length;
     }
     if( isObject( obj ) ) {
@@ -1959,7 +2031,7 @@ var isWindow = obj => obj && obj === obj.window;
 
 var is = {
     arguments : isArguments,
-    array,
+    array: isArray$1,
     arrowFunction,
     asyncFunction,
     boolean : isBoolean,
@@ -3012,21 +3084,18 @@ function post( url, options = {} ) {
 
 var biu = { request, get: get$1, post, ajax, jsonp };
 
-function getDataByPath( src, path ) {
-    return new Function( 's', 'try{with(s)return ' + path + '}catch(e){window.console.warn("[J WARN] getDataByPath : " + e)}' )( src );
-}
-
 class Model extends Extension {
     constructor( init, config = {} ) {
         super( init, Object.assign( { type : 'model' }, config ) );
 
         this.validators || ( this.validators = {} );
+        this.validations || ( this.validations = {} );
         this.data || ( this.data = {} );
         this.expose || ( this.expose = [] );
         
+        this.$validators = {};
         this.__watch_handlers = new Map();
-        // a property for stroing the initial data
-        this.__boundValidation = false;
+
         if( this.$data ) {
             Observer.destroy( this.$data );
         }
@@ -3036,31 +3105,32 @@ class Model extends Extension {
         }
 
         this.$props = Observer.create( defaultProps(), Observer.create( this.__methods() ) );
-
         this.$data = Observer.create( {}, this.$props );
-
     }
 
     __init() {
         this.__initial = null;
-        this.__triedSubmit = false;
+        this.__triedSubmitting = false;
 
         this.$on( 'ready', () => {
             this.$props.$ready = true;
         } );
 
-        return this.__initData().then( data => {
-            this.$assign( data );
-            try {
-                this.__initial = JSON.stringify( this.$data );
-            } catch( e ) {
-                console.warn( e );
-            }
-        } ).catch( reason => {
-            const error = new Error( 'Failed to initialize model data.', { reason } );
-            this.$props.$failed = error;
-            throw error;
-        } );
+        return Promise$1.all( [
+            this.__initValidations(),
+            this.__initData().then( data => {
+                this.$assign( data );
+                try {
+                    this.__initial = JSON.stringify( this.$data );
+                } catch( e ) {
+                    console.warn( e );
+                }
+            } ).catch( reason => {
+                const error = new Error( 'Failed to initialize model data.', { reason } );
+                this.$props.$failed = error;
+                throw error;
+            } )
+        ] );
     }
 
     __initData() {
@@ -3071,9 +3141,139 @@ class Model extends Extension {
             } );
         }
         if( this.data && isFunction( this.data ) ) {
-            return Promise$1.resolve( this.data() )
+            return Promise$1.resolve( this.data() );
         }
         return Promise$1.resolve( this.data || {} );
+    }
+
+    __initValidations() {
+        const promises = [];
+        const validators = this.validators;
+        const $validation = defaultValidationProps();
+
+        for( const name in validators ) {
+            if( validators.hasOwnProperty( name ) ) {
+                promises.push( this.$validator( name, validators[ name ] ) );
+            }
+        }
+
+        const validations = this.validations;
+
+        for( const key in validations ) {
+            const item = validations[ key ];
+            $validation[ key ] = defaultValidationProps();
+            item.path || ( item.path = key );
+            item.$validator = this.__makeValidator( key, item );
+            if( !item .on ) item.on = 'submitted';
+
+            this.$watch( () => {
+                const rules = Object.keys( $validation[ key ].$errors );
+                for( let rule of rules ) {
+                    if( $validation[ key ].$errors[ rule ] ) {
+                        return true;
+                    }
+                }
+                return false;
+            }, val => {
+                const $validation = this.$props.$validation;
+
+                $validation[ key ].$error = val;
+
+                if( val === true ) {
+                    $validation.$error = true;
+                    return;
+                }
+
+                for( let attr in $validation ) {
+                    if( $validation[ attr ].$error === true ) {
+                        $validation.$error = true;
+                        return;
+                    }
+                }
+
+                $validation.$error = false;
+            } );
+
+            switch( item.on ) {
+                case 'submit' :
+                case 3 :
+                    break;
+                case 'change' :
+                case 1 :
+                    this.$watch( item.path, item.$validator );
+                    break;
+                case 'submitted' :
+                case 2 :
+                default :
+                    this.$watch( item.path, ( ...args ) => {
+                        if( this.__triedSubmitting ) {
+                            item.$validator( ...args );
+                        }
+                    } );
+            }
+        }
+
+        Observer.set( this.$props, '$validation', $validation );
+
+        return Promise$1.all( promises );
+    }
+
+    __makeValidator( name, bound ) {
+        return val => {
+            if( !isUndefined( val ) ) {
+                val = Observer.calc( this.$data, bound.path );
+            }
+            const props = this.$props;
+            const validation = props.$validation;
+            const errors = validation[ name ].$errors;
+            const steps = [];
+
+            for( const key in bound.rules ) {
+                const rule = bound.rules[ key ];
+                let func;
+                let args = [ val ];
+
+
+                if( isFunction( this.$validators[ key ] ) ) {
+                    func = this.$validators[ key ];
+                    args.push( ...( isArray$1( rule ) ? rule : [ rule ] ) );
+                } else {
+                    func = rule;
+                }
+
+                if( isFunction( func ) ) {
+                    steps.push( () => {
+                        const result = func.call( this, ...args );
+                        if( isPromise( result ) ) {
+                            result.then( v => {
+                                if( v === false ) {
+                                    Observer.set( errors, key, true );
+                                    throw false;
+                                }
+                                Observer.set( errors, key, v === false );
+                                return true;
+                            } ).catch( () => {
+                                Observer.set( errors, key, true );
+                                throw false;
+                            } );
+                        }
+
+                        if( result === false ) {
+                            Observer.set( errors, key, true );
+                            return true;
+                        }
+
+                        Observer.set( errors, key, false );
+                        throw false;
+
+                    } );    
+                } else {
+                    console.warn( `Invalide validator "${rule}".` );
+                }
+            }
+
+            return Sequence.all( steps );
+        };
     }
 
     __methods() {
@@ -3093,98 +3293,19 @@ class Model extends Extension {
         return methods;
     }
 
-    __bindSpecialProperties() {
-        const properties = {
-            $ready : true,
-            $error : false,
-            $submitting : false,
-            $requesting : false,
-            $response : null,
-            $validation : this.__validationDefaultStatus()
-        };
-
-        const makeChangeAfterSubmitHandler = item => {
-            return ( ...args ) => {
-                if( this.__triedSubmit ) {
-                    item.__validator( ...args );
-                }
-            };
-        };
-
-        if( this.validations ) {
-            const keys = Object.keys( this.validations );
-            for( let key of keys ) {
-                const item = this.validations[ key ];
-                properties.$validation[ key ] = this.__validationDefaultStatus();
-
-                if( !this.__boundValidation ) {
-                    item.__validator = this.__validator( key, item );
-                    item.path || ( item.path = key );
-                    switch( item.on ) {
-                        case 'change' :
-                        case 1 :
-                            this.$watch( item.path, item.__validator );
-                            break;
-                        case 'change-after-submit' :
-                        case 2 :
-                            this.$watch( item.path, makeChangeAfterSubmitHandler( item ) );
-                            break;
-                        default :
-                            break;
-                    }
-                }
-            }
+    $validator( name, handler ) {
+        if( isPromise( handler ) ) {
+            return handler.then( res => {
+                this.$validators[ name ] = isFunction( res.expose ) ? res.expose() : res;
+            } );
         }
-    }
 
-    __validationDefaultStatus() {
-        return {
-            $valid : false,
-            $checked : false,
-            $modified : false,
-            $dirty : false,
-            $pristine : false,
-            $error : false,
-            $errors : {}
-        };
-    }
+        if( isString( handler ) ) {
+            console.log( handler );
+        }
 
-    __validator( name, bound ) {
-        return () => {
-            const validation = this.$data.$validation;
-            if( !validation ) return true;
-            let res = true;
-            const val = getDataByPath( this.$data, bound.path );
-            for( let keys = Object.keys( bound ), i = keys.length - 1; i >= 0; i-- ) {
-                const key = keys[ i ];
-
-                if( key.charAt( 0 ) === '_' && key.charAt( 1 ) === '_' ) continue;
-                const item = bound[ key ];
-                let error;
-
-                if( isFunction( item ) ) {
-                    error = !item.call( this, val );
-                } else if( isFunction( this.validators[ key ] ) ) {
-                    error = !this.validators[ key ]( val, bound[ key ] );
-                } else { continue }
-                error && ( res = false );
-                this.$assign( validation[ name ].$errors, {
-                    [ key ] : error
-                } );
-            }
-
-            if( bound.hasOwnProperty( 'method' ) ) {
-                if( !bound.method.call( this, val ) ) {
-                    res = false;
-                    validation[ name ].$errors.method = true;
-                }
-                validation[ name ].$errors.method = false;
-            }
-
-            validation[ name ].$valid = res;
-
-            return !( validation[ name ].$error = !res );
-        };
+        this.$validators[ name ] = handler;
+        return Promise$1.resolve( handler );
     }
 
     $watch( exp, handler ) {
@@ -3264,7 +3385,6 @@ class Model extends Extension {
             props.$requesting = false;
             props.$error = false;
             props.$response = res;
-            console.log( '===============', res );
             return res;
         } ).catch( reason => {
             props.$requesting = false;
@@ -3342,6 +3462,7 @@ class Model extends Extension {
     }
 
     $validate() {
+        
     }
 }
 
@@ -3352,13 +3473,13 @@ function defaultProps() {
         $submitting : false,
         $requesting : false,
         $error : false,
-        $response : null,
-        $validation : defaultValidationProps()
+        $response : null
     };
 }
 
 function defaultValidationProps() {
     return {
+        $validating : false,
         $valid : false,
         $checked : false,
         $modified : false,
