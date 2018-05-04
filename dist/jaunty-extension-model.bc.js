@@ -4566,6 +4566,40 @@ function (_Extension) {
           $validation.$error = false;
         });
 
+        _this4.$watch(function () {
+          return $validation[key].$validating;
+        }, function (val) {
+          if (val === true) {
+            $validation.$validating = true;
+            return;
+          }
+
+          for (var _key in $validation) {
+            if (_key.charAt(0) === '$') continue;
+
+            if ($validation[_key].$validating) {
+              $validation.$validation = true;
+              return;
+            }
+          }
+
+          $validation.$validating = false;
+        });
+
+        var exp = function exp() {
+          return JSON.stringify(_this4.$data) !== _this4.__initial;
+        };
+
+        var handler = function handler(v) {
+          if (v === false) {
+            _this4.$unwatch(exp, handler);
+
+            _this4.$props.$validation.$pristine = false;
+          }
+        };
+
+        _this4.$watch(exp, handler);
+
         switch (item.on) {
           case 'submit':
           case 3:
@@ -4641,7 +4675,6 @@ function (_Extension) {
                   return true;
                 }).catch(function () {
                   Observer.set(errors, key, true);
-                  console.log('kkkkkkkkkkkkkkkkkkkkkkkk', validation.property.$validating);
                   throw false;
                 });
               }
@@ -4663,19 +4696,12 @@ function (_Extension) {
           _loop2(key);
         }
 
-        console.log('=================', validation.property);
-        console.log('llllllllllllllllll', steps, validation.property);
-        Sequence.all([function () {
-          throw false;
-        }]).catch(function () {
-          console.log('abcdefg');
-        });
         return Sequence.all(steps).then(function () {
           validation[name].$validating = false;
-          console.log('xxxxxxxxxxxxxx', validation.property);
+          validation[name].$checked = true;
         }).catch(function (e) {
           validation[name].$validating = false;
-          console.log('xxxxxxxxxxxxxx', validation.property);
+          validation[name].$checked = true;
           throw e;
         });
       };
@@ -4691,10 +4717,10 @@ function (_Extension) {
 
       try {
         for (var _iterator = keys[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          var _key = _step.value;
-          if (_key.charAt(0) !== '$' && this.expose.indexOf(_key) < 0) continue;
-          var item = this[_key];
-          Object.defineProperty(methods, _key, {
+          var _key2 = _step.value;
+          if (_key2.charAt(0) !== '$' && this.expose.indexOf(_key2) < 0) continue;
+          var item = this[_key2];
+          Object.defineProperty(methods, _key2, {
             value: isFunction(item) ? item.bind(this) : item
           });
         }
@@ -4739,8 +4765,8 @@ function (_Extension) {
       var _this7 = this;
 
       var wrapedHandler = function wrapedHandler() {
-        for (var _len = arguments.length, args = new Array(_len), _key2 = 0; _key2 < _len; _key2++) {
-          args[_key2] = arguments[_key2];
+        for (var _len = arguments.length, args = new Array(_len), _key3 = 0; _key3 < _len; _key3++) {
+          args[_key3] = arguments[_key3];
         }
 
         handler.call.apply(handler, [_this7].concat(args));
@@ -4872,8 +4898,8 @@ function (_Extension) {
       props.$submitting = props.$requesting = true;
       var res;
 
-      for (var _len2 = arguments.length, args = new Array(_len2 > 2 ? _len2 - 2 : 0), _key3 = 2; _key3 < _len2; _key3++) {
-        args[_key3 - 2] = arguments[_key3];
+      for (var _len2 = arguments.length, args = new Array(_len2 > 2 ? _len2 - 2 : 0), _key4 = 2; _key4 < _len2; _key4++) {
+        args[_key4 - 2] = arguments[_key4];
       }
 
       if (isFunction(method)) {
@@ -4963,11 +4989,8 @@ function defaultProps() {
 function defaultValidationProps() {
   return {
     $validating: false,
-    $valid: false,
     $checked: false,
-    $modified: false,
-    $dirty: false,
-    $pristine: false,
+    $pristine: true,
     $error: false,
     $errors: {}
   };

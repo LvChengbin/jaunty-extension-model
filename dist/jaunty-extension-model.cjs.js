@@ -3199,6 +3199,33 @@ class Model extends Extension {
                 $validation.$error = false;
             } );
 
+            this.$watch( () => $validation[ key ].$validating, val => {
+                if( val === true ) {
+                    $validation.$validating = true;
+                    return;
+                }
+
+                for( const key in $validation ) {
+                    if( key.charAt( 0 ) === '$' ) continue;
+                    if( $validation[ key ].$validating ) {
+                        $validation.$validation = true;
+                        return;
+                    }
+                }
+                $validation.$validating = false;
+            } );
+
+            const exp = () => JSON.stringify( this.$data ) !== this.__initial;
+
+            const handler = v => {
+                if( v === false ) {
+                    this.$unwatch( exp, handler );
+                    this.$props.$validation.$pristine = false;
+                }
+            };
+
+            this.$watch( exp, handler );
+
             switch( item.on ) {
                 case 'submit' :
                 case 3 :
@@ -3261,7 +3288,6 @@ class Model extends Extension {
                                 return true;
                             } ).catch( () => {
                                 Observer.set( errors, key, true );
-                                console.log( 'kkkkkkkkkkkkkkkkkkkkkkkk', validation.property.$validating );
                                 throw false;
                             } );
                         }
@@ -3279,24 +3305,13 @@ class Model extends Extension {
                     console.warn( `Invalide validator "${rule}".` );
                 }
             }
-            console.log( '=================', validation.property );
-
-            console.log( 'llllllllllllllllll', steps, validation.property );
-
-            Sequence.all( [
-                () => {
-                    throw false
-                }
-            ] ).catch( () => {
-                console.log( 'abcdefg' );
-            } );
 
             return Sequence.all( steps ).then( () => {
                 validation[ name ].$validating = false;
-                console.log( 'xxxxxxxxxxxxxx', validation.property );
+                validation[ name ].$checked = true;
             } ).catch( e => {
                 validation[ name ].$validating = false;
-                console.log( 'xxxxxxxxxxxxxx', validation.property );
+                validation[ name ].$checked = true;
                 throw e;
             } );
         };
@@ -3533,11 +3548,8 @@ function defaultProps() {
 function defaultValidationProps() {
     return {
         $validating : false,
-        $valid : false,
         $checked : false,
-        $modified : false,
-        $dirty : false,
-        $pristine : false,
+        $pristine : true,
         $error : false,
         $errors : {}
     };
