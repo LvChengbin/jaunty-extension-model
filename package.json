@@ -59,6 +59,6 @@
     "@lvchengbin/is": "0.0.9",
     "@lvchengbin/observer": "0.1.2",
     "@lvchengbin/promise": "^1.1.4",
-    "@lvchengbin/sequence": "^1.0.1"
+    "@lvchengbin/sequence": "^1.1.0"
   }
 }

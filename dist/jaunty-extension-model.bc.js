@@ -514,104 +514,6 @@ function promiseReject(promise, value) {
   promiseExecute(promise);
 }
 
-var EventEmitter$1 =
-/*#__PURE__*/
-function () {
-  function EventEmitter() {
-    _classCallCheck(this, EventEmitter);
-
-    this.__listeners = new Map();
-  }
-
-  _createClass(EventEmitter, [{
-    key: "alias",
-    value: function alias(name, to) {
-      this[name] = this[to].bind(this);
-    }
-  }, {
-    key: "on",
-    value: function on(evt, handler) {
-      var listeners = this.__listeners;
-      var handlers = listeners.get(evt);
-
-      if (!handlers) {
-        handlers = new Set();
-        listeners.set(evt, handlers);
-      }
-
-      handlers.add(handler);
-      return this;
-    }
-  }, {
-    key: "once",
-    value: function once(evt, handler) {
-      var _this = this;
-
-      var _handler = function _handler() {
-        for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-          args[_key] = arguments[_key];
-        }
-
-        handler.apply(_this, args);
-
-        _this.removeListener(evt, _handler);
-      };
-
-      return this.on(evt, _handler);
-    }
-  }, {
-    key: "removeListener",
-    value: function removeListener(evt, handler) {
-      var listeners = this.__listeners;
-      var handlers = listeners.get(evt);
-      handlers && handlers.delete(handler);
-      return this;
-    }
-  }, {
-    key: "emit",
-    value: function emit(evt) {
-      var _this2 = this;
-
-      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-        args[_key2 - 1] = arguments[_key2];
-      }
-
-      var handlers = this.__listeners.get(evt);
-
-      if (!handlers) return false;
-      handlers.forEach(function (handler) {
-        return handler.call.apply(handler, [_this2].concat(args));
-      });
-    }
-  }, {
-    key: "removeAllListeners",
-    value: function removeAllListeners(rule) {
-      var checker;
-
-      if (isString(rule)) {
-        checker = function checker(name) {
-          return rule === name;
-        };
-      } else if (isFunction(rule)) {
-        checker = rule;
-      } else if (regexp(rule)) {
-        checker = function checker(name) {
-          rule.lastIndex = 0;
-          return rule.test(name);
-        };
-      }
-
-      var listeners = this.__listeners;
-      listeners.forEach(function (value, key) {
-        checker(key) && listeners.delete(key);
-      });
-      return this;
-    }
-  }]);
-
-  return EventEmitter;
-}();
-
 function isUndefined () {
   return arguments.length > 0 && typeof arguments[0] === 'undefined';
 }
@@ -748,14 +650,20 @@ function (_EventEmitter) {
       this.busy = true;
       return this.promise = this.promise.then(function () {
         var step = _this2.steps[_this2.index];
-        var promise = step(_this2.results[_this2.results.length - 1], _this2.index, _this2.results);
-        /**
-         * if the step function doesn't return a promise instance,
-         * create a resolved promise instance with the returned value as its value
-         */
+        var promise;
 
-        if (!isPromise(promise)) {
-          promise = Promise$1.resolve(promise);
+        try {
+          promise = step(_this2.results[_this2.results.length - 1], _this2.index, _this2.results);
+          /**
+           * if the step function doesn't return a promise instance,
+           * create a resolved promise instance with the returned value as its value
+           */
+
+          if (!isPromise(promise)) {
+            promise = Promise$1.resolve(promise);
+          }
+        } catch (e) {
+          promise = Promise$1.reject(e);
         }
 
         return promise.then(function (value) {
@@ -828,7 +736,7 @@ function (_EventEmitter) {
   }]);
 
   return Sequence;
-}(EventEmitter$1);
+}(EventEmitter);
 
 Sequence.SUCCEEDED = 1;
 Sequence.FAILED = 0;
@@ -904,7 +812,7 @@ function () {
   return _class;
 }();
 
-var EventEmitter$2 =
+var EventEmitter$1 =
 /*#__PURE__*/
 function () {
   function EventEmitter() {
@@ -1076,7 +984,7 @@ function (_EventEmitter) {
   }]);
 
   return Resource;
-}(EventEmitter$2);
+}(EventEmitter$1);
 
 var Error$1 =
 /*#__PURE__*/
@@ -1372,7 +1280,7 @@ var integer = (function (n) {
   return false;
 });
 
-var EventEmitter$3 =
+var EventEmitter$2 =
 /*#__PURE__*/
 function () {
   function EventEmitter() {
@@ -1470,7 +1378,7 @@ function () {
   return EventEmitter;
 }();
 
-var eventcenter = new EventEmitter$3();
+var eventcenter = new EventEmitter$2();
 var collector = {
   records: [],
   collecting: false,
@@ -1508,7 +1416,7 @@ function isSubset(obj, container) {
   return false;
 }
 
-var ec = new EventEmitter$3();
+var ec = new EventEmitter$2();
 /**
  * caches for storing expressions.
  * Map( {
@@ -4623,8 +4531,8 @@ function (_Extension) {
       var _loop = function _loop(key) {
         var item = validations[key];
         $validation[key] = defaultValidationProps();
-        item.path || (item.path = key);
-        item.$validator = _this4.__makeValidator(key, item);
+        $validation[key].path = item.path || (item.path = key);
+        $validation[key].$validator = item.$validator = _this4.__makeValidator(key, item);
         if (!item.on) item.on = 'submitted';
 
         _this4.$watch(function () {
@@ -4694,14 +4602,15 @@ function (_Extension) {
       var _this5 = this;
 
       return function (val) {
-        if (!isUndefined(val)) {
-          val = Observer.calc(_this5.$data, bound.path);
-        }
-
         var props = _this5.$props;
         var validation = props.$validation;
         var errors = validation[name].$errors;
         var steps = [];
+        validation[name].$validating = true;
+
+        if (isUndefined(val)) {
+          val = Observer.calc(_this5.$data, bound.path);
+        }
 
         var _loop2 = function _loop2(key) {
           var rule = bound.rules[key];
@@ -4732,6 +4641,7 @@ function (_Extension) {
                   return true;
                 }).catch(function () {
                   Observer.set(errors, key, true);
+                  console.log('kkkkkkkkkkkkkkkkkkkkkkkk', validation.property.$validating);
                   throw false;
                 });
               }
@@ -4753,7 +4663,21 @@ function (_Extension) {
           _loop2(key);
         }
 
-        return Sequence.all(steps);
+        console.log('=================', validation.property);
+        console.log('llllllllllllllllll', steps, validation.property);
+        Sequence.all([function () {
+          throw false;
+        }]).catch(function () {
+          console.log('abcdefg');
+        });
+        return Sequence.all(steps).then(function () {
+          validation[name].$validating = false;
+          console.log('xxxxxxxxxxxxxx', validation.property);
+        }).catch(function (e) {
+          validation[name].$validating = false;
+          console.log('xxxxxxxxxxxxxx', validation.property);
+          throw e;
+        });
       };
     }
   }, {
@@ -4990,7 +4914,36 @@ function (_Extension) {
     }
   }, {
     key: "$validate",
-    value: function $validate() {}
+    value: function $validate(name) {
+      var promises = [];
+      var validation = this.$props.$validation;
+
+      if (name) {
+        if (!validation[name]) {
+          console.warn("No validator named \"".concat(name, "\"."));
+          return Promise$1.resolve();
+        }
+
+        return validation[name].$validator.call(this);
+      }
+
+      if (validation) {
+        for (var attr in validation) {
+          if (attr.charAt(0) === '$') continue;
+          var item = validation[attr];
+          promises.push(item.$validator.call(this));
+        }
+      }
+
+      return Promise$1.all(promises).then(function () {
+        validation.$error = false;
+      }).catch(function () {
+        validation.$error = true;
+      });
+    }
+  }, {
+    key: "$destruct",
+    value: function $destruct() {}
   }]);
 
   return Model;

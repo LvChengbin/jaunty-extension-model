@@ -87,8 +87,8 @@ class Model extends Extension {
         for( const key in validations ) {
             const item = validations[ key ];
             $validation[ key ] = defaultValidationProps();
-            item.path || ( item.path = key );
-            item.$validator = this.__makeValidator( key, item );
+            $validation[ key ].path = item.path || ( item.path = key );
+            $validation[ key ].$validator = item.$validator = this.__makeValidator( key, item );
             if( !item .on ) item.on = 'submitted';
 
             this.$watch( () => {
@@ -119,6 +119,33 @@ class Model extends Extension {
                 $validation.$error = false;
             } );
 
+            this.$watch( () => $validation[ key ].$validating, val => {
+                if( val === true ) {
+                    $validation.$validating = true;
+                    return;
+                }
+
+                for( const key in $validation ) {
+                    if( key.charAt( 0 ) === '$' ) continue;
+                    if( $validation[ key ].$validating ) {
+                        $validation.$validation = true;
+                        return;
+                    }
+                }
+                $validation.$validating = false;
+            } );
+
+            const exp = () => JSON.stringify( this.$data ) !== this.__initial;
+
+            const handler = v => {
+                if( v === false ) {
+                    this.$unwatch( exp, handler );
+                    this.$props.$validation.$pristine = false;
+                }
+            };
+
+            this.$watch( exp, handler );
+
             switch( item.on ) {
                 case 'submit' :
                 case 3 :
@@ -145,19 +172,21 @@ class Model extends Extension {
 
     __makeValidator( name, bound ) {
         return val => {
-            if( !isUndefined( val ) ) {
-                val = Observer.calc( this.$data, bound.path );
-            }
             const props = this.$props;
             const validation = props.$validation;
             const errors = validation[ name ].$errors;
             const steps = [];
 
+            validation[ name ].$validating = true;
+
+            if( isUndefined( val ) ) {
+                val = Observer.calc( this.$data, bound.path );
+            }
+
             for( const key in bound.rules ) {
                 const rule = bound.rules[ key ];
                 let func;
                 let args = [ val ];
-
 
                 if( isFunction( this.$validators[ key ] ) ) {
                     func = this.$validators[ key ];
@@ -197,7 +226,14 @@ class Model extends Extension {
                 }
             }
 
-            return Sequence.all( steps );
+            return Sequence.all( steps ).then( () => {
+                validation[ name ].$validating = false;
+                validation[ name ].$checked = true;
+            } ).catch( e => {
+                validation[ name ].$validating = false;
+                validation[ name ].$checked = true;
+                throw e;
+            } );
         };
     }
 
@@ -386,8 +422,35 @@ class Model extends Extension {
         return Promise.resolve( res );
     }
 
-    $validate() {
-        
+    $validate( name ) {
+        const promises = [];
+        const validation = this.$props.$validation;
+
+        if( name ) {
+            if( !validation[ name ] ) {
+                console.warn( `No validator named "${name}".` );
+                return Promise.resolve();
+            }
+
+            return validation[ name ].$validator.call( this );
+        }
+
+        if( validation ) {
+            for( const attr in validation ) {
+                if( attr.charAt( 0 ) === '$' ) continue;
+                const item = validation[ attr ];
+                promises.push( item.$validator.call( this ) );
+            }
+        }
+
+        return Promise.all( promises ).then( () => {
+            validation.$error = false;
+        } ).catch( () => {
+            validation.$error = true;
+        } );
+    }
+
+    $destruct() {
     }
 }
 
@@ -405,11 +468,8 @@ function defaultProps() {
 function defaultValidationProps() {
     return {
         $validating : false,
-        $valid : false,
         $checked : false,
-        $modified : false,
-        $dirty : false,
-        $pristine : false,
+        $pristine : true,
         $error : false,
         $errors : {}
     };

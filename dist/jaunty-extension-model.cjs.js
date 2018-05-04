@@ -302,70 +302,6 @@ function promiseReject( promise, value ) {
     promiseExecute( promise );
 }
 
-class EventEmitter$1 {
-    constructor() {
-        this.__listeners = new Map();
-    }
-
-    alias( name, to ) {
-        this[ name ] = this[ to ].bind( this );
-    }
-
-    on( evt, handler ) {
-        const listeners = this.__listeners;
-        let handlers = listeners.get( evt );
-
-        if( !handlers ) {
-            handlers = new Set();
-            listeners.set( evt, handlers );
-        }
-        handlers.add( handler );
-        return this;
-    }
-
-    once( evt, handler ) {
-        const _handler = ( ...args ) => {
-            handler.apply( this, args );
-            this.removeListener( evt, _handler );
-        };
-        return this.on( evt, _handler );
-    }
-
-    removeListener( evt, handler ) {
-        const listeners = this.__listeners;
-        const handlers = listeners.get( evt );
-        handlers && handlers.delete( handler );
-        return this;
-    }
-
-    emit( evt, ...args ) {
-        const handlers = this.__listeners.get( evt );
-        if( !handlers ) return false;
-        handlers.forEach( handler => handler.call( this, ...args ) );
-    }
-
-    removeAllListeners( rule ) {
-        let checker;
-        if( isString( rule ) ) {
-            checker = name => rule === name;
-        } else if( isFunction( rule ) ) {
-            checker = rule;
-        } else if( regexp( rule ) ) {
-            checker = name => {
-                rule.lastIndex = 0;
-                return rule.test( name );
-            };
-        }
-
-        const listeners = this.__listeners;
-
-        listeners.forEach( ( value, key ) => {
-            checker( key ) && listeners.delete( key );
-        } );
-        return this;
-    }
-}
-
 function isUndefined() {
     return arguments.length > 0 && typeof arguments[ 0 ] === 'undefined';
 }
@@ -385,7 +321,7 @@ function config() {
  * new Sequence( [] )
  */
 
-class Sequence extends EventEmitter$1 {
+class Sequence extends EventEmitter {
     constructor( steps, options = {} ) {
         super();
 
@@ -462,18 +398,25 @@ class Sequence extends EventEmitter$1 {
         
         return this.promise = this.promise.then( () => {
             const step = this.steps[ this.index ];
-            let promise = step(
-                this.results[ this.results.length - 1 ],
-                this.index,
-                this.results
-            );
-            /**
-             * if the step function doesn't return a promise instance,
-             * create a resolved promise instance with the returned value as its value
-             */
-            if( !isPromise( promise ) ) {
-                promise = Promise$1.resolve( promise );
+            let promise;
+
+            try {
+                promise = step(
+                    this.results[ this.results.length - 1 ],
+                    this.index,
+                    this.results
+                );
+                /**
+                 * if the step function doesn't return a promise instance,
+                 * create a resolved promise instance with the returned value as its value
+                 */
+                if( !isPromise( promise ) ) {
+                    promise = Promise$1.resolve( promise );
+                }
+            } catch( e ) {
+                promise = Promise$1.reject( e );
             }
+
             return promise.then( value => {
                 const result = {
                     status : Sequence.SUCCEEDED,
@@ -583,7 +526,7 @@ Sequence.Error = class {
     }
 };
 
-class EventEmitter$2 {
+class EventEmitter$1 {
     constructor() {
         this.__listeners = {};
     }
@@ -661,7 +604,7 @@ class EventEmitter$2 {
     }
 }
 
-class Resource extends EventEmitter$2 {
+class Resource extends EventEmitter$1 {
     constructor( resource, options = {} ) {
         super();
 
@@ -881,7 +824,7 @@ var integer = ( n, strict = false ) => {
     return false;
 }
 
-class EventEmitter$3 {
+class EventEmitter$2 {
     constructor() {
         this.__listeners = new Map();
     }
@@ -945,7 +888,7 @@ class EventEmitter$3 {
     }
 }
 
-const eventcenter = new EventEmitter$3();
+const eventcenter = new EventEmitter$2();
 
 const collector = {
     records : [],
@@ -982,7 +925,7 @@ function isSubset( obj, container ) {
     return false;
 }
 
-const ec = new EventEmitter$3();
+const ec = new EventEmitter$2();
 
 /**
  * caches for storing expressions.
@@ -3224,8 +3167,8 @@ class Model extends Extension {
         for( const key in validations ) {
             const item = validations[ key ];
             $validation[ key ] = defaultValidationProps();
-            item.path || ( item.path = key );
-            item.$validator = this.__makeValidator( key, item );
+            $validation[ key ].path = item.path || ( item.path = key );
+            $validation[ key ].$validator = item.$validator = this.__makeValidator( key, item );
             if( !item .on ) item.on = 'submitted';
 
             this.$watch( () => {
@@ -3282,19 +3225,21 @@ class Model extends Extension {
 
     __makeValidator( name, bound ) {
         return val => {
-            if( !isUndefined( val ) ) {
-                val = Observer.calc( this.$data, bound.path );
-            }
             const props = this.$props;
             const validation = props.$validation;
             const errors = validation[ name ].$errors;
             const steps = [];
 
+            validation[ name ].$validating = true;
+
+            if( isUndefined( val ) ) {
+                val = Observer.calc( this.$data, bound.path );
+            }
+
             for( const key in bound.rules ) {
                 const rule = bound.rules[ key ];
                 let func;
                 let args = [ val ];
-
 
                 if( isFunction( this.$validators[ key ] ) ) {
                     func = this.$validators[ key ];
@@ -3316,6 +3261,7 @@ class Model extends Extension {
                                 return true;
                             } ).catch( () => {
                                 Observer.set( errors, key, true );
+                                console.log( 'kkkkkkkkkkkkkkkkkkkkkkkk', validation.property.$validating );
                                 throw false;
                             } );
                         }
@@ -3333,8 +3279,26 @@ class Model extends Extension {
                     console.warn( `Invalide validator "${rule}".` );
                 }
             }
+            console.log( '=================', validation.property );
 
-            return Sequence.all( steps );
+            console.log( 'llllllllllllllllll', steps, validation.property );
+
+            Sequence.all( [
+                () => {
+                    throw false
+                }
+            ] ).catch( () => {
+                console.log( 'abcdefg' );
+            } );
+
+            return Sequence.all( steps ).then( () => {
+                validation[ name ].$validating = false;
+                console.log( 'xxxxxxxxxxxxxx', validation.property );
+            } ).catch( e => {
+                validation[ name ].$validating = false;
+                console.log( 'xxxxxxxxxxxxxx', validation.property );
+                throw e;
+            } );
         };
     }
 
@@ -3523,8 +3487,35 @@ class Model extends Extension {
         return Promise$1.resolve( res );
     }
 
-    $validate() {
-        
+    $validate( name ) {
+        const promises = [];
+        const validation = this.$props.$validation;
+
+        if( name ) {
+            if( !validation[ name ] ) {
+                console.warn( `No validator named "${name}".` );
+                return Promise$1.resolve();
+            }
+
+            return validation[ name ].$validator.call( this );
+        }
+
+        if( validation ) {
+            for( const attr in validation ) {
+                if( attr.charAt( 0 ) === '$' ) continue;
+                const item = validation[ attr ];
+                promises.push( item.$validator.call( this ) );
+            }
+        }
+
+        return Promise$1.all( promises ).then( () => {
+            validation.$error = false;
+        } ).catch( () => {
+            validation.$error = true;
+        } );
+    }
+
+    $destruct() {
     }
 }
 
