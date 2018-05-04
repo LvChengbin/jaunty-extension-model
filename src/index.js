@@ -30,7 +30,8 @@ class Model extends Extension {
             Observer.destroy( this.$props );
         }
 
-        this.$props = Observer.create( defaultProps(), Observer.create( this.__methods() ) );
+        this.$methods = Observer.create( this.__methods() );
+        this.$props = Observer.create( defaultProps(), this.$methods );
         this.$data = Observer.create( {}, this.$props );
     }
 
@@ -451,6 +452,9 @@ class Model extends Extension {
     }
 
     $destruct() {
+        Observer.destroy( this.$data );
+        Observer.destroy( this.$props );
+        Observer.destroy( this.$methods );
     }
 }
 
