@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@jaunty/error": "^0.0.1",
-    "@jaunty/extension": "^0.0.7",
+    "@jaunty/extension": "^0.0.8",
     "@lvchengbin/biu": "^0.1.5",
     "@lvchengbin/is": "0.0.9",
     "@lvchengbin/observer": "0.1.2",

@@ -1053,7 +1053,7 @@ function (_EventEmitter) {
       return _this.__resolve = r;
     });
     Promise$1.resolve((_this2 = _this).__preinit.apply(_this2, arguments)).then(function () {
-      _this.__construct();
+      return _this.__construct();
     });
     return _this;
   }
@@ -1099,6 +1099,8 @@ function (_EventEmitter) {
         }
 
         return Promise$1.all(list);
+      }, function () {
+        return Promise$1.resolve(_this3.__afterinit());
       }, function () {
         return isFunction(_this3.init) ? _this3.init() : true;
       }, function () {
@@ -1152,6 +1154,9 @@ function (_EventEmitter) {
   }, {
     key: "__preinit",
     value: function __preinit() {}
+  }, {
+    key: "__afterinit",
+    value: function __afterinit() {}
   }, {
     key: "__init",
     value: function __init() {}
@@ -4443,12 +4448,12 @@ function (_Extension) {
     _this = _possibleConstructorReturn(this, (Model.__proto__ || Object.getPrototypeOf(Model)).call(this, init, Object.assign({
       type: 'extension-model'
     }, config)));
+    _this.__watch_handlers = new Map();
     _this.validators || (_this.validators = {});
     _this.validations || (_this.validations = {});
     _this.data || (_this.data = {});
     _this.expose || (_this.expose = []);
     _this.$validators = {};
-    _this.__watch_handlers = new Map();
 
     if (_this.$data) {
       Observer.destroy(_this.$data);
@@ -4458,7 +4463,8 @@ function (_Extension) {
       Observer.destroy(_this.$props);
     }
 
-    _this.$props = Observer.create(defaultProps(), Observer.create(_this.__methods()));
+    _this.$methods = Observer.create(_this.__methods());
+    _this.$props = Observer.create(defaultProps(), _this.$methods);
     _this.$data = Observer.create({}, _this.$props);
     return _this;
   }
@@ -4788,14 +4794,14 @@ function (_Extension) {
       }
     }
     /**
-     * $assign( value )
-     * $assign( key, value )
-     * $assign( dest, key, value );
+     * $set( value )
+     * $set( key, value )
+     * $set( dest, key, value );
      */
 
   }, {
-    key: "$assign",
-    value: function $assign() {
+    key: "$set",
+    value: function $set() {
       if (arguments.length === 1) {
         return Observer.replace.apply(Observer, [this.$data].concat(Array.prototype.slice.call(arguments)));
       }
@@ -4808,17 +4814,41 @@ function (_Extension) {
         return Observer.set.apply(Observer, arguments);
       }
     }
+    /**
+     * $assign( value )
+     * $assign( dest, value )
+     */
+
+  }, {
+    key: "$assign",
+    value: function $assign(dest, value) {
+      if (arguments.length === 1) {
+        value = dest;
+        dest = this.$data;
+      }
+
+      var _arr = Object.keys(value);
+
+      for (var _i2 = 0; _i2 < _arr.length; _i2++) {
+        var key = _arr[_i2];
+        this.$set(dest, key, value[key]);
+      }
+    }
   }, {
     key: "$delete",
     value: function $delete() {
-      Observer.delete.apply(Observer, arguments);
+      if (arguments.length === 1) {
+        return Observer.delete(this.$data, arguments[0]);
+      }
+
+      return Observer.delete.apply(Observer, arguments);
     }
   }, {
     key: "$reset",
     value: function $reset() {
       if (this.__initial) {
         try {
-          this.$assign(JSON.parse(this.__initial));
+          this.$set(JSON.parse(this.__initial));
         } catch (e) {
           console.warn(e);
         }
@@ -4830,7 +4860,7 @@ function (_Extension) {
       var _this8 = this;
 
       return this.__loadData().then(function (data) {
-        _this8.$assign(data);
+        _this8.$set(data);
 
         try {
           _this8.__initial = JSON.stringify(_this8.$data);
@@ -4969,7 +4999,11 @@ function (_Extension) {
     }
   }, {
     key: "$destruct",
-    value: function $destruct() {}
+    value: function $destruct() {
+      Observer.destroy(this.$data);
+      Observer.destroy(this.$props);
+      Observer.destroy(this.$methods);
+    }
   }]);
 
   return Model;

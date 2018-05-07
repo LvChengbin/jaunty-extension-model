@@ -153,12 +153,12 @@ describe( 'Methods of Jaunty Extension Model', () => {
         } );
     } );
 
-    describe( '$assign', () => {
+    describe( '$set', () => {
         it( 'to replace the $data', done => {
             new Model( {
                 data : { x : 1, y : 2 }
             } ).$ready( function() {
-                this.$assign( { m : 1, n : 2, x : 3 } );
+                this.$set( { m : 1, n : 2, x : 3 } );
 
                 expect( this.$data ).toEqual( { m : 1, n : 2, x : 3 } );
 
@@ -176,7 +176,7 @@ describe( 'Methods of Jaunty Extension Model', () => {
             new Model( {
                 data : { x : 1, y : 2 }
             } ).$ready( function() {
-                this.$assign( 'm', 3 );
+                this.$set( 'm', 3 );
 
                 expect( this.$data ).toEqual( { x : 1, y : 2, m : 3 } );
 
@@ -194,7 +194,7 @@ describe( 'Methods of Jaunty Extension Model', () => {
             new Model( {
                 data : { x : 1, y : 2, obj : {} }
             } ).$ready( function() {
-                this.$assign( this.$data.obj, 'm', 3 );
+                this.$set( this.$data.obj, 'm', 3 );
 
                 expect( this.$data ).toEqual( { x : 1, y : 2, obj : { m : 3 } } );
 
@@ -249,7 +249,7 @@ describe( 'Methods of Jaunty Extension Model', () => {
                 },
                 action() {
                     this.$data.x = 2;
-                    this.$assign( 'm', 1 );
+                    this.$set( 'm', 1 );
                     expect( this.$data ).toEqual( { x : 2, y : 1, m : 1 } );
                     this.$reset();
                     expect( this.$data ).toEqual( { x : 1, y : 1 } );
@@ -268,7 +268,7 @@ describe( 'Methods of Jaunty Extension Model', () => {
                 },
                 action() {
                     this.$data.y = 2;
-                    this.$assign( 'm', 1 );
+                    this.$set( 'm', 1 );
                     expect( this.$data ).toEqual( { x : 0, y : 2, m : 1 } );
                     this.$refresh().then( () => {
                         expect( this.$data ).toEqual( { x : 1, y : 1 } );

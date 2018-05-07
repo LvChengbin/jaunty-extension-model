@@ -14,13 +14,13 @@ class Model extends Extension {
     constructor( init, config = {} ) {
         super( init, Object.assign( { type : 'extension-model' }, config ) );
 
+        this.__watch_handlers = new Map();
         this.validators || ( this.validators = {} );
         this.validations || ( this.validations = {} );
         this.data || ( this.data = {} )
         this.expose || ( this.expose = [] );
         
         this.$validators = {};
-        this.__watch_handlers = new Map();
 
         if( this.$data ) {
             Observer.destroy( this.$data );
@@ -274,14 +274,12 @@ class Model extends Extension {
         const wrapedHandler = ( ...args ) => {
             handler.call( this, ...args );
         };
-
         this.__watch_handlers.set( handler, wrapedHandler );
         Observer.watch( this.$data, exp, wrapedHandler );
     }
 
     $unwatch( exp, handler ) {
         const wrapedHandler = this.__watch_handlers.get( handler );
-
         if( wrapedHandler ) {
             Observer.unwatch( this.$data, exp, wrapedHandler );
             this.__watch_handlers.delete( handler );
@@ -289,11 +287,11 @@ class Model extends Extension {
     }
 
     /**
-     * $assign( value )
-     * $assign( key, value )
-     * $assign( dest, key, value );
+     * $set( value )
+     * $set( key, value )
+     * $set( dest, key, value );
      */
-    $assign() {
+    $set() {
         if( arguments.length === 1 ) {
             return Observer.replace( this.$data, ...arguments ); 
         }
@@ -302,18 +300,35 @@ class Model extends Extension {
         }
         if( arguments.length === 3 ) {
             return Observer.set( ...arguments );
+        }
+    }
 
+    /**
+     * $assign( value )
+     * $assign( dest, value )
+     */
+    $assign( dest, value ) {
+        if( arguments.length === 1 ) {
+            value = dest;
+            dest = this.$data;
+        }
+
+        for( const key of Object.keys( value ) ) {
+            this.$set( dest, key, value[ key ] );
         }
     }
 
     $delete() {
-        Observer.delete( ...arguments );
+        if( arguments.length === 1 ) {
+            return Observer.delete( this.$data, arguments[ 0 ] );
+        }
+        return Observer.delete( ...arguments );
     }
 
     $reset() {
         if( this.__initial ) {
             try {
-                this.$assign( JSON.parse( this.__initial ) );
+                this.$set( JSON.parse( this.__initial ) );
             } catch( e ) {
                 console.warn( e );
             }
@@ -322,7 +337,7 @@ class Model extends Extension {
 
     $refresh() {
         return this.__loadData().then( data => {
-            this.$assign( data );
+            this.$set( data );
             try {
                 this.__initial = JSON.stringify( this.$data );
             } catch( e ) {
