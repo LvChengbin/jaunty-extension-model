@@ -1,5 +1,5 @@
-import babel from 'rollup-plugin-babel';
 import resolve from 'rollup-plugin-node-resolve';
+import buble from 'rollup-plugin-buble';
 
 export default [ {
     input : 'src/index.js',
@@ -19,7 +19,12 @@ export default [ {
         resolve( {
             jsnext : true
         } ),
-        babel()
+        buble( {
+            transforms : {
+                arrow : true,
+                dangerousForOf : true
+            }
+        } )
     ],
     output : [
         { file : 'dist/jaunty-extension-model.bc.js', format : 'umd', name : 'Model' }
