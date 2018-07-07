@@ -4,13 +4,32 @@
 	(global.Model = factory());
 }(this, (function () { 'use strict';
 
-var asyncFunction = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
+/**
+ * async function
+ *
+ * @syntax: 
+ *  async function() {}
+ *  async () => {}
+ *  async x() => {}
+ *
+ * @compatibility
+ * IE: no
+ * Edge: >= 15
+ * Android: >= 5.0
+ *
+ */
 
-var isFunction = fn => ({}).toString.call( fn ) === '[object Function]' || asyncFunction( fn );
+var isAsyncFunction = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
+
+var isFunction = fn => ({}).toString.call( fn ) === '[object Function]' || isAsyncFunction( fn );
 
 var isString = str => typeof str === 'string' || str instanceof String;
 
-var regexp = reg => ({}).toString.call( reg ) === '[object RegExp]';
+var isAsyncFunction$1 = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
+
+var isFunction$1 = fn => ({}).toString.call( fn ) === '[object Function]' || isAsyncFunction$1( fn );
+
+var isRegExp = reg => ({}).toString.call( reg ) === '[object RegExp]';
 
 class EventEmitter {
     constructor() {
@@ -58,9 +77,9 @@ class EventEmitter {
         let checker;
         if( isString( rule ) ) {
             checker = name => rule === name;
-        } else if( isFunction( rule ) ) {
+        } else if( isFunction$1( rule ) ) {
             checker = rule;
-        } else if( regexp( rule ) ) {
+        } else if( isRegExp( rule ) ) {
             checker = name => {
                 rule.lastIndex = 0;
                 return rule.test( name );
@@ -76,7 +95,26 @@ class EventEmitter {
     }
 }
 
-var isPromise = p => p && isFunction( p.then );
+/**
+ * async function
+ *
+ * @syntax: 
+ *  async function() {}
+ *  async () => {}
+ *  async x() => {}
+ *
+ * @compatibility
+ * IE: no
+ * Edge: >= 15
+ * Android: >= 5.0
+ *
+ */
+
+var isAsyncFunction$2 = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
+
+var isFunction$2 = fn => ({}).toString.call( fn ) === '[object Function]' || isAsyncFunction$2( fn );
+
+var isPromise = p => p && isFunction$2( p.then );
 
 const Promise$1 = class {
     constructor( fn ) {
@@ -84,7 +122,7 @@ const Promise$1 = class {
             throw new TypeError( this + ' is not a promise ' );
         }
 
-        if( !isFunction( fn ) ) {
+        if( !isFunction$2( fn ) ) {
             throw new TypeError( 'Promise resolver ' + fn + ' is not a function' );
         }
 
@@ -103,8 +141,8 @@ const Promise$1 = class {
     then( resolved, rejected ) {
         const promise = new Promise$1( () => {} );
         this[ '[[PromiseThenables]]' ].push( {
-            resolve : isFunction( resolved ) ? resolved : null,
-            reject : isFunction( rejected ) ? rejected : null,
+            resolve : isFunction$2( resolved ) ? resolved : null,
+            reject : isFunction$2( rejected ) ? rejected : null,
             called : false,
             promise
         } );
@@ -118,7 +156,7 @@ const Promise$1 = class {
 };
 
 Promise$1.resolve = function( value ) {
-    if( !isFunction( this ) ) {
+    if( !isFunction$2( this ) ) {
         throw new TypeError( 'Promise.resolve is not a constructor' );
     }
     /**
@@ -131,7 +169,7 @@ Promise$1.resolve = function( value ) {
 };
 
 Promise$1.reject = function( reason ) {
-    if( !isFunction( this ) ) {
+    if( !isFunction$2( this ) ) {
         throw new TypeError( 'Promise.reject is not a constructor' );
     }
     return new Promise$1( ( resolve, reject ) => {
@@ -310,6 +348,242 @@ function isUndefined() {
     return arguments.length > 0 && typeof arguments[ 0 ] === 'undefined';
 }
 
+function find( haystack, key ) {
+    for( let item of haystack ) {
+        if( item[ 0 ] === key ) return item;
+    }
+    return false;
+}
+
+class Map$1 {
+    constructor( iterable = [] ) {
+        if( !( this instanceof Map$1 ) ) {
+            throw new TypeError( 'Constructor Map requires \'new\'' );
+        }
+        this.map = iterable || [];
+    }
+    get size() {
+        return this.map.length;
+    }
+
+    get( key ) {
+        const data = find( this.map, key );
+        return data ? data[ 1 ] : undefined;
+    }
+
+    set( key, value ) {
+        const data = find( this.map, key );
+        if( data ) {
+            data[ 1 ] = value;
+        } else {
+            this.map.push( [ key, value ] );
+        }
+        return this;
+    }
+
+    delete( key ) {
+        for( let i = 0, l = this.map.length; i < l; i += 1 ) {
+            const item = this.map[ i ];
+            if( item[ 0 ] === key ) {
+                this.map.splice( i, 1 );
+                return true;
+            }
+            
+        }
+        return false;
+    }
+
+    clear() {
+        this.map= [];
+    }
+
+    forEach( callback, thisArg ) {
+        isUndefined( thisArg ) && ( this.Arg = this );
+        for( let item of this.map ) {
+            callback.call( thisArg, item[ 1 ], item[ 0 ], this );
+        }
+    }
+
+    has( key ) {
+        return !!find( this.map, key );
+    }
+
+    keys() {
+        const keys = [];
+        for( let item of this.map ) {
+            keys.push( item[ 0 ] );
+        }
+        return keys;
+    }
+
+    entries() {
+        return this.map;
+    }
+
+    values() {
+        const values = [];
+        for( let item of this.map ) {
+            values.push( item[ 1 ] );
+        }
+        return values;
+    }
+}
+
+function isUndefined$1() {
+    return arguments.length > 0 && typeof arguments[ 0 ] === 'undefined';
+}
+
+class Set$1 {
+    constructor( iterable = [] ) {
+        if( !( this instanceof Set$1 ) ) {
+            throw new TypeError( 'Constructor Set requires \'new\'' );
+        }
+        this.set = [];
+
+        if( iterable && iterable.length ) {
+            for( let item of iterable ) this.add( item );
+        }
+    }
+
+    get size() {
+        return this.set.length;
+    }
+
+    add( value ) {
+        const i = this.set.indexOf( value );
+        if( i > -1 ) {
+            this.set[ i ] = value;
+        } else {
+            this.set.push( value );
+        }
+        return this;
+    }
+
+    delete( value ) {
+        const i = this.set.indexOf( value );
+        if( i > -1 ) {
+            this.set.splice( i, 1 );
+            return true;
+        }
+        return false;
+    }
+
+    clear() {
+        this.set = [];
+    }
+
+    forEach( callback, thisArg ) {
+        isUndefined$1( thisArg ) && ( this.Arg = this );
+        for( let item of this.set ) {
+            callback.call( thisArg, item, item, this );
+        }
+    }
+
+    has( value ) {
+        return this.set.indexOf( value ) > -1;
+    }
+
+    keys() {
+        return this.values();
+    }
+
+    entries() {
+        const res = [];
+        for( let item of this.set ) {
+            res.push( [ item, item ] ); 
+        }
+        return res;
+    }
+
+    values() {
+        return this.set;
+    }
+}
+
+var isString$1 = str => typeof str === 'string' || str instanceof String;
+
+var isRegExp$1 = reg => ({}).toString.call( reg ) === '[object RegExp]';
+
+class EventEmitter$1 {
+    constructor() {
+        this.__listeners = new Map$1();
+    }
+
+    on( evt, handler ) {
+        const listeners = this.__listeners;
+        let handlers = listeners.get( evt );
+
+        if( !handlers ) {
+            handlers = new Set$1();
+            listeners.set( evt, handlers );
+        }
+        handlers.add( handler );
+        return this;
+    }
+
+    once( evt, handler ) {
+        const _handler = ( ...args ) => {
+            handler.apply( this, args );
+            this.removeListener( evt, _handler );
+        };
+        return this.on( evt, _handler );
+    }
+
+    removeListener( evt, handler ) {
+        const listeners = this.__listeners;
+        const handlers = listeners.get( evt );
+        handlers && handlers.delete( handler );
+        return this;
+    }
+
+    emit( evt, ...args ) {
+        const handlers = this.__listeners.get( evt );
+        if( !handlers ) return false;
+        handlers.forEach( handler => handler.call( this, ...args ) );
+    }
+
+    removeAllListeners( rule ) {
+        let checker;
+        if( isString$1( rule ) ) {
+            checker = name => rule === name;
+        } else if( isFunction$2( rule ) ) {
+            checker = rule;
+        } else if( isRegExp$1( rule ) ) {
+            checker = name => {
+                rule.lastIndex = 0;
+                return rule.test( name );
+            };
+        }
+
+        const listeners = this.__listeners;
+
+        listeners.forEach( ( value, key ) => {
+            checker( key ) && listeners.delete( key );
+        } );
+        return this;
+    }
+}
+
+function isUndefined$2() {
+    return arguments.length > 0 && typeof arguments[ 0 ] === 'undefined';
+}
+
+function assign( dest, ...sources ) {
+    if( isFunction$2( Object.assign ) ) {
+        return Object.assign( dest, ...sources );
+    }
+    const obj = sources[ 0 ];
+    for( let property in obj ) {
+        if( obj.hasOwnProperty( property ) ) {
+            dest[ property ] = obj[ property ];
+        }
+    }
+    if( sources.length > 1 ) {
+        return assign( dest, ...sources.splice( 1, sources.length - 1 ) );
+    }
+    return dest;
+}
+
 function config() {
     return {
         promises : [],
@@ -325,7 +599,7 @@ function config() {
  * new Sequence( [] )
  */
 
-class Sequence extends EventEmitter {
+class Sequence extends EventEmitter$1 {
     constructor( steps, options = {} ) {
         super();
 
@@ -333,11 +607,28 @@ class Sequence extends EventEmitter {
         this.running = false;
         this.suspended = false;
         this.suspendTimeout = null;
+        this.muteEndIfEmpty = !!options.emitEndIfEmpty;
         this.interval = options.interval || 0;
 
-        Object.assign( this, config() );
+        assign( this, config() );
 
-        steps && this.append( steps );
+        if( steps && steps.length ) {
+            this.append( steps );
+        } else if( !this.muteEndIfEmpty ) {
+            if( typeof process === 'object' && isFunction$2( process.nextTick ) ) {
+                process.nextTick( () => {
+                    this.emit( 'end', this.results, this );
+                } );
+            } else if( typeof setImmediate === 'function' ) {
+                setImmediate( () => {
+                    this.emit( 'end', this.results, this );
+                } );
+            } else {
+                setTimeout( () => {
+                    this.emit( 'end', this.results, this );
+                }, 0 );
+            }
+        }
 
         options.autorun !== false && setTimeout( () => {
             this.run();
@@ -350,7 +641,7 @@ class Sequence extends EventEmitter {
     append( steps ) {
         const dead = this.index >= this.steps.length;
 
-        if( isFunction( steps ) ) {
+        if( isFunction$2( steps ) ) {
             this.steps.push( steps );
         } else {
             for( let step of steps ) {
@@ -361,7 +652,7 @@ class Sequence extends EventEmitter {
     }
 
     go( n ) {
-        if( isUndefined( n ) ) return;
+        if( isUndefined$2( n ) ) return;
         this.index = n;
         if( this.index > this.steps.length ) {
             this.index = this.steps.length;
@@ -369,7 +660,7 @@ class Sequence extends EventEmitter {
     }
 
     clear() {
-        Object.assign( this, config() );
+        assign( this, config() );
     }
 
     next( inner = false ) {
@@ -474,63 +765,97 @@ class Sequence extends EventEmitter {
             this.running && this.next( true );
         }, duration );
     }
+
+    static all( ...args ) {
+        const { steps, interval, cb } = parseArguments( ...args );
+        const sequence = new Sequence( steps, { interval } );
+
+        isFunction$2( cb ) && cb.call( sequence, sequence );
+
+        return new Promise$1( ( resolve, reject ) => {
+            sequence.on( 'end', results => {
+                resolve( results );
+            } );
+            sequence.on( 'failed', () => {
+                sequence.stop();
+                reject( sequence.results );
+            } );
+        } );
+    }
+
+    static chain( ...args ) {
+        const { steps, interval, cb } = parseArguments( ...args );
+        const sequence = new Sequence( steps, { interval } );
+        isFunction$2( cb ) && cb.call( sequence, sequence );
+        return new Promise$1( resolve => {
+            sequence.on( 'end', results => {
+                resolve( results );
+            } );
+        } );
+    }
+
+    static any( ...args ) {
+        const { steps, interval, cb } = parseArguments( ...args );
+        const sequence = new Sequence( steps, { interval } );
+        isFunction$2( cb ) && cb.call( sequence, sequence );
+        return new Promise$1( ( resolve, reject ) => {
+            sequence.on( 'success', () => {
+                resolve( sequence.results );
+                sequence.stop();
+            } );
+
+            sequence.on( 'end', () => {
+                reject( sequence.results );
+            } );
+        } );
+    }
 }
 
 Sequence.SUCCEEDED = 1;
 Sequence.FAILED = 0;
 
-Sequence.all = ( steps, interval = 0 ) => {
-    if( !steps.length ) {
-        return Promise$1.resolve( [] );
-    }
-    const sequence = new Sequence( steps, { interval } );
-    return new Promise$1( ( resolve, reject ) => {
-        sequence.on( 'end', results => {
-            resolve( results );
-        } );
-        sequence.on( 'failed', () => {
-            sequence.stop();
-            reject( sequence.results );
-        } );
-    } );
-};
-
-Sequence.chain = ( steps, interval = 0 ) => {
-    if( !steps.length ) {
-        return Promise$1.resolve( [] );
-    }
-    const sequence = new Sequence( steps, { interval } );
-    return new Promise$1( resolve => {
-        sequence.on( 'end', results => {
-            resolve( results );
-        } );
-    } );
-};
-
-Sequence.any = ( steps, interval = 0 ) => {
-    if( !steps.length ) {
-        return Promise$1.reject( [] );
-    }
-    const sequence = new Sequence( steps, { interval } );
-    return new Promise$1( ( resolve, reject ) => {
-        sequence.on( 'success', () => {
-            resolve( sequence.results );
-            sequence.stop();
-        } );
-
-        sequence.on( 'end', () => {
-            reject( sequence.results );
-        } );
-    } );
-};
-
 Sequence.Error = class {
     constructor( options ) {
-        Object.assign( this, options );
+        assign( this, options );
     }
 };
 
-class EventEmitter$1 {
+function parseArguments( steps, interval, cb ) {
+    if( isFunction$2( interval ) ) {
+        cb = interval;
+        interval = 0;
+    }
+    return { steps, interval, cb }
+}
+
+/**
+ * async function
+ *
+ * @syntax: 
+ *  async function() {}
+ *  async () => {}
+ *  async x() => {}
+ *
+ * @compatibility
+ * IE: no
+ * Edge: >= 15
+ * Android: >= 5.0
+ *
+ */
+
+var isAsyncFunction$3 = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
+
+var isFunction$3 = fn => ({}).toString.call( fn ) === '[object Function]' || isAsyncFunction$3( fn );
+
+var isString$2 = str => typeof str === 'string' || str instanceof String;
+
+var isAsyncFunction$4 = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
+
+var isFunction$4 = fn => ({}).toString.call( fn ) === '[object Function]' || isAsyncFunction$4( fn );
+
+var isRegExp$2 = reg => ({}).toString.call( reg ) === '[object RegExp]';
+
+class EventEmitter$2 {
     constructor() {
         this.__listeners = {};
     }
@@ -587,11 +912,11 @@ class EventEmitter$1 {
 
     removeAllListeners( rule ) {
         let checker;
-        if( isString( rule ) ) {
+        if( isString$2( rule ) ) {
             checker = name => rule === name;
-        } else if( isFunction( rule ) ) {
+        } else if( isFunction$4( rule ) ) {
             checker = rule;
-        } else if( regexp( rule ) ) {
+        } else if( isRegExp$2( rule ) ) {
             checker = name => {
                 rule.lastIndex = 0;
                 return rule.test( name );
@@ -608,7 +933,9 @@ class EventEmitter$1 {
     }
 }
 
-class Resource extends EventEmitter$1 {
+var isPromise$1 = p => p && isFunction$4( p.then );
+
+class Resource extends EventEmitter$2 {
     constructor( resource, options = {} ) {
         super();
 
@@ -623,9 +950,9 @@ class Resource extends EventEmitter$1 {
         this.status = 'loading';
 
         this.__ready = new Promise$1( ( resolve, reject ) => {
-            if( isFunction( resource.$ready ) ) {
+            if( isFunction$4( resource.$ready ) ) {
                 resource.$ready( resolve );
-            } else if( isPromise( resource ) ) {
+            } else if( isPromise$1( resource ) ) {
                 resource.then( res => {
                     resolve( this.response = res );
                 } ).catch( reason => {
@@ -706,14 +1033,14 @@ class Base extends EventEmitter {
                 properties.push( ...Object.keys( this ) );
 
                 for( const property of properties ) {
-                    if( /^__init[A-Z].*/.test( property ) && isFunction( this[ property ] ) ) {
+                    if( /^__init[A-Z].*/.test( property ) && isFunction$3( this[ property ] ) ) {
                         list.push( this[ property ]() );
                     }
                 }
                 return Promise$1.all( list );
             },
             () => Promise$1.resolve( this.__afterinit() ),
-            () => isFunction( this.init ) ? this.init() : true,
+            () => isFunction$3( this.init ) ? this.init() : true,
             () => {
                 const list = [];
 
@@ -726,11 +1053,12 @@ class Base extends EventEmitter {
         ] ).catch( results => {
             const reason = results[ results.length - 1 ].reason;
             this.__setStatus( 'error', reason );
+            console.warn( 'Failed while initializing.', reason );
             throw new Error( 'Failed while initializing.', { reason } );
         } ).then( () => {
             this.__setStatus( 'ready' );
             this.__resolve();
-            isFunction( this.action ) && this.action();
+            isFunction$3( this.action ) && this.action();
         } ).then( () => {
             Promise$1.all( resources ).then( () => this.__setStatus( 'loaded' ) );
         } );
@@ -761,6 +1089,10 @@ class Base extends EventEmitter {
 
     $reload() {
         return this.__construct();
+    }
+
+    $call( method, ...args ) {
+        return this[ method ].call( this, ...args );
     }
 }
 
@@ -815,13 +1147,15 @@ var isNumber = ( n, strict = false ) => {
     return !isNaN( parseFloat( n ) ) && isFinite( n )  && !/\.$/.test( n );
 };
 
-var integer = ( n, strict = false ) => {
+var isString$3 = str => typeof str === 'string' || str instanceof String;
+
+var isInteger = ( n, strict = false ) => {
 
     if( isNumber( n, true ) ) return n % 1 === 0;
 
     if( strict ) return false;
 
-    if( isString( n ) ) {
+    if( isString$3( n ) ) {
         if( n === '-0' ) return true;
         return n.indexOf( '.' ) < 0 && String( parseInt( n ) ) === n;
     }
@@ -829,71 +1163,17 @@ var integer = ( n, strict = false ) => {
     return false;
 }
 
-class EventEmitter$2 {
-    constructor() {
-        this.__listeners = new Map();
-    }
+var isAsyncFunction$5 = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
 
-    alias( name, to ) {
-        this[ name ] = this[ to ].bind( this );
-    }
+var isFunction$5 = fn => ({}).toString.call( fn ) === '[object Function]' || isAsyncFunction$5( fn );
 
-    on( evt, handler ) {
-        const listeners = this.__listeners;
-        let handlers = listeners.get( evt );
+var isPromise$2 = p => p && isFunction$5( p.then );
 
-        if( !handlers ) {
-            handlers = new Set();
-            listeners.set( evt, handlers );
-        }
-        handlers.add( handler );
-        return this;
-    }
-
-    once( evt, handler ) {
-        const _handler = ( ...args ) => {
-            handler.apply( this, args );
-            this.removeListener( evt, _handler );
-        };
-        return this.on( evt, _handler );
-    }
-
-    removeListener( evt, handler ) {
-        const listeners = this.__listeners;
-        const handlers = listeners.get( evt );
-        handlers && handlers.delete( handler );
-        return this;
-    }
-
-    emit( evt, ...args ) {
-        const handlers = this.__listeners.get( evt );
-        if( !handlers ) return false;
-        handlers.forEach( handler => handler.call( this, ...args ) );
-    }
-
-    removeAllListeners( rule ) {
-        let checker;
-        if( isString( rule ) ) {
-            checker = name => rule === name;
-        } else if( isFunction( rule ) ) {
-            checker = rule;
-        } else if( regexp( rule ) ) {
-            checker = name => {
-                rule.lastIndex = 0;
-                return rule.test( name );
-            };
-        }
-
-        const listeners = this.__listeners;
-
-        listeners.forEach( ( value, key ) => {
-            checker( key ) && listeners.delete( key );
-        } );
-        return this;
-    }
+function isUndefined$3() {
+    return arguments.length > 0 && typeof arguments[ 0 ] === 'undefined';
 }
 
-const eventcenter = new EventEmitter$2();
+const eventcenter = new EventEmitter();
 
 const collector = {
     records : [],
@@ -915,22 +1195,102 @@ function isSubset( obj, container ) {
     if( !obj || typeof obj !== 'object' ) return false;
     for( const prop in container ) {
         const item = container[ prop ];
-        if( item === obj ) {
-            return true;
-        }
+        if( item === obj ) return true;
 
         if( item && typeof item === 'object' ) {
             const res = isSubset( obj, item );
-            if( res ) {
-                return true;
-            }
+            if( res ) return true;
         }
     }
 
     return false;
 }
 
-const ec = new EventEmitter$2();
+/**
+ * soe map, for storing relations between setters, observers and expressions.
+ * Map( {
+ *     setter : Map( {
+ *          observer : Map( {
+ *              exp : Set( [ ...handlers ] )
+ *          } )
+ *     } )
+ * } )
+ */
+const soe = new Map();
+
+function set( setter, observer, exp, handler ) {
+    const map = soe.get( setter ); 
+    if( !map ) {
+        return soe.set( setter, new Map( [ 
+            [ observer, new Map( [ 
+                [ exp, new Set( [ handler ] ) ]
+            ] ) ]
+        ] ) );
+    }
+    const obs = map.get( observer );
+    if( !obs ) {
+        return map.set( observer, new Map( [ 
+            [ exp, new Set( [ handler ] ) ]
+        ] ) );
+    }
+    const exps = obs.get( exp );
+    exps ? exps.add( handler ) : obs.set( exp, new Set( [ handler ] ) );
+}
+
+function getSetter( setter ) {
+    return soe.get( setter );
+}
+
+function forEachAllObserver( cb ) {
+    soe.forEach( obs => {
+        obs.forEach( ( exps, ob ) => {
+            exps.forEach( ( handlers, exp ) => cb( ob, exp, handlers ) );
+        } );
+    } );
+}
+
+function forEachExps( setter, cb ) {
+    const map = soe.get( setter );
+    if( !map ) return;
+    map.forEach( ( exps, ob ) => {
+        exps.forEach( ( handlers, exp ) => cb( ob, exp, handlers ) );
+    } );
+}
+
+function deleteSetter( setter ) {
+    soe.delete( setter );
+}
+
+function deleteObserver( observer ) {
+    soe.forEach( obs => obs.delete( observer ) );
+}
+
+function deleteSetterObserver( setter, observer ) {
+    try {
+        return soe.get( setter ).delete( observer );
+    } catch( e ) {
+        return false;
+    }
+}
+
+function deleteHandler( observer, expression, handler ) {
+    soe.forEach( obs => {
+        obs.forEach( ( exps, ob ) => {
+            if( ob !== observer ) return;
+            exps.forEach( ( handlers, exp ) => {
+                if( exp !== expression ) return;
+                handlers.delete( handler );
+            } );
+        } );
+    } );
+}
+
+var soe$1 = { 
+    set, getSetter, forEachExps, forEachAllObserver, 
+    deleteSetter, deleteObserver, deleteSetterObserver, deleteHandler
+};
+
+const ec = new EventEmitter();
 
 /**
  * caches for storing expressions.
@@ -951,32 +1311,11 @@ const caches = new Map();
 const values = new Map();
 
 /**
- * a Set for storing all callback functions
- */
-const callbacks = new Set();
-
-/**
- * a map for storing the relations between observers, expressions, setters, handlers and callbacks.
- * Map( {
- *      observer : Map( {
- *          expression/function : Map( {
- *              handler : [ { setter, callback } ]
- *          } )
- *      } )
- * } );
- */
-const handlers = new Map();
-
-
-/**
  * To do some preparations while adding a new observer.
  */
 eventcenter.on( 'add-observer', observer => {
     if( !values.get( observer ) ) {
         values.set( observer, new Map() );
-    }
-    if( !handlers.get( observer ) ) {
-        handlers.set( observer, new Map() );
     }
 } );
 
@@ -984,19 +1323,7 @@ eventcenter.on( 'add-observer', observer => {
  * Processes after deleting an observer.
  */
 eventcenter.on( 'destroy-observer',  observer => {
-    const map = handlers.get( observer );
-
-    map.forEach( hmap => {
-        hmap.forEach( value => {
-            if( !value.length ) return;
-            for( const item of value ) {
-                ec.removeListener( item.setter, item.callback );
-            }
-            callbacks.delete( value[ 0 ].callback );
-        } ); 
-    } );
-
-    handlers.set( observer, new Map() );
+    soe$1.deleteObserver( observer );
     values.set( observer, new Map() );
 } );
 
@@ -1005,67 +1332,36 @@ eventcenter.on( 'destroy-observer',  observer => {
  * all callback function should be executed again to check if the changes would effect any expressions.
  */
 eventcenter.on( 'set-value', () => {
-    callbacks.forEach( cb => cb() );
+    // to execute all expressions after deleting a property from an observer.
+    soe$1.forEachAllObserver( execute );
 } );
-
-/**
- * to delete relevent data of a setter of an observer, for releasing useless memory.
- */
-const deleteSetterFromObserver = ( observer, setter ) => {
-    const ob = handlers.get( observer );
-    if( !ob ) return;
-
-    ob.forEach( val => {
-        val.forEach( value => {
-            for( let i = 0, l = value.length; i < l; i += 1 ) {
-                const item = value[ i ];
-                if( item.setter === setter ) {
-                    ec.removeListener( setter, item.callback );
-                    callbacks.delete( item.callback );
-                    value.splice( i--, 1 );
-                    l--;
-                }
-            }
-        } );
-    } );
-};
 
 /**
  * to remove useless listeners for release memory.
  */
-const gc = ( obj, keys ) => {
-
+const gc = ( obj ) => {
     if( !obj || typeof obj !== 'object' ) return;
-
-    handlers.forEach( ( v, observer ) => {
+    const keys = Object.keys;
+    const getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+    soe$1.forEachAllObserver( observer => {
         if( isSubset( obj, observer ) ) return;
-
-        if( !keys ) {
-            keys = Object.keys( obj );
-        }
-        
-        for( const key of keys ) {
-            const descriptor = Object.getOwnPropertyDescriptor( obj, key );
+        for( let key of keys( obj ) ) {
+            const descriptor = getOwnPropertyDescriptor( obj, key ); 
             const setter = descriptor && descriptor.set;
             if( !setter ) continue;
-            deleteSetterFromObserver( observer, setter );
+            soe$1.deleteSetterObserver( setter, observer );
             const item = obj[ key ];
-            if( item && typeof item === 'object' ) {
-                gc( item );
-            }
+            item && typeof item === 'object' && gc( item );
         }
     } );
 };
 
-eventcenter.on( 'overwrite-object', ( val, old ) => {
-    gc( old );
-} );
+eventcenter.on( 'overwrite-object', ( val, old ) => gc( old ) );
 
 eventcenter.on( 'delete-property', ( deleted, setter ) => {
-    callbacks.forEach( cb => cb() );
-    setter && handlers.forEach( ( v, observer ) => {
-        deleteSetterFromObserver( observer, setter );
-    } );
+    // to execute all expressions after deleting a property from an observer.
+    soe$1.forEachAllObserver( execute );
+    soe$1.deleteSetter( setter );
     gc( deleted );
 } );
 
@@ -1076,7 +1372,12 @@ eventcenter.on( 'delete-property', ( deleted, setter ) => {
  * @param {Function|String} exp
  */
 function expression( exp ) {
-    return new Function( 's', 'try{with(s)return ' + exp + '}catch(e){return null}' );
+    if( isFunction$5( exp ) ) return exp;
+    let fn = caches.get( exp );
+    if( fn ) return fn;
+    fn = new Function( 's', `try{with(s)return ${exp}}catch(e){return null}` );
+    caches.set( exp, fn );
+    return fn;
 }
 
 /**
@@ -1088,46 +1389,48 @@ function expression( exp ) {
  * @param {*} value
  */
 function setValue( observer, exp, value ) {
-    let oldvalue;
-    let map = values.get( observer );
-    oldvalue = map.get( exp );
-
-    if( value !== oldvalue ) {
-        map.set( exp, value );
-    }
-    return oldvalue;
+    values.get( observer ).set( exp, value );
 }
 
-function setHandler( observer, exp, handler, setter, callback ) {
-    const expressions = handlers.get( observer );
+function getValue( observer, exp ) {
+    return values.get( observer ).get( exp );
+}
 
-    let map = expressions.get( exp );
-
-    if( !map ) {
-        map = new Map();
-        map.set( handler, [ { setter, callback } ] );
-        expressions.set( exp, map );
-        return;
-    }
-
-    const list = map.get( handler );
-
-    if( !list ) {
-        map.set( handler, [ { setter, callback } ] );
-    }
-
-    let exists = false;
-
-    for( let item of list ) {
-        if( item.setter === setter && item.callback === callback ) {
-            exists = true;
-            break;
+function execute( observer, exp, handlers ) {
+    const fn = expression( exp );
+    collector.start();
+    const val = fn( observer );
+    const setters = collector.stop();
+    for( let setter of setters ) {
+        for( let handler of handlers ) {
+            listen( setter, observer, exp, handler );
         }
     }
-
-    if( !exists ) {
-        list.push( { setter, callback } );
+    if( isPromise$2( val ) ) {
+        val.then( n => {
+            const ov = getValue( observer, exp );
+            if( ov !== n ) {
+                handlers.forEach( handler => handler( n, ov, observer, exp ) );
+                setValue( observer, exp, n );
+            }
+        } );
+    } else {
+        const ov = getValue( observer, exp );
+        if( ov !== val ) {
+            handlers.forEach( handler => handler( val, ov, observer, exp ) );
+            setValue( observer, exp, val );
+        }
     }
+}
+
+function listen( setter, observer, exp, handler ) {
+    if( !soe$1.getSetter( setter ) ) {
+        /**
+         * to bind event on the setter
+         */
+        ec.on( setter, () => soe$1.forEachExps( setter, execute ) );
+    }
+    soe$1.set( setter, observer, exp, handler );
 }
 
 /**
@@ -1135,105 +1438,37 @@ function setHandler( observer, exp, handler, setter, callback ) {
  * To watch changes of an expression or a function of an observer.
  */
 function watch( observer, exp, handler ) {
-
-    let cb, setters, fn;
-
-    if( isFunction( exp ) ) {
-        fn = exp;
-        cb = () => {
-            collector.start();
-            const value = fn( observer );
-            const setters = collector.stop();
-            for( let setter of setters ) {
-                ec.on( setter, cb );
-            }
-
-            if( isPromise( value ) ) {
-                value.then( val => {
-                    const oldvalue = setValue( observer, fn, val );
-
-                    if( oldvalue !== val ) {
-                        handler( val, oldvalue, observer );
-                    }
-                } );
-            } else {
-                const oldvalue = setValue( observer, fn, value );
-                if( oldvalue !== value ) {
-                    handler( value, oldvalue, observer );
-                }
-            }
-        };
-
-    } else {
-
-        fn = caches.get( exp );
-
-        if( !fn ) {
-            fn = expression( exp );
-            caches.set( exp, fn );
-        }
-
-        cb = () => {
-            let value;
-            collector.start();
-            value = fn( observer );
-            const setters = collector.stop();
-            for( let setter of setters ) {
-                ec.on( setter, cb );
-            }
-            const oldvalue = setValue( observer, exp, value );
-            
-            if( oldvalue !== value ) {
-                handler( value, oldvalue, observer, exp );
-            }
-        };
-    }
+    const fn = expression( exp );
 
     collector.start();
     const value = fn( observer );
-    setters = collector.stop();
-    if( isPromise( value ) ) {
+    const setters = collector.stop();
+    if( setters.length ) {
+        for( let setter of setters ) {
+            listen( setter, observer, exp, handler );
+        }
+    } else {
+        /**
+         * to set a listener with a NULL setter
+         */
+        listen( null, observer, exp, handler );
+    }
+
+    if( isPromise$2( value ) ) {
         value.then( val => setValue( observer, exp, val ) );
     } else {
         setValue( observer, exp, value );
     }
-
-    /**
-     * add the callback function to callbacks map, so that while changing data with Observer.set or Observer.delete all the callback functions should be executed.
-     */
-    callbacks.add( cb );
-    /**
-     * while start to watch a non-exists path in an observer,
-     * no setters would be collected by collector, and it would make an lonely callback function in callbacks map
-     * which cannot be found by handler, so, it cannot be removed while calling Observer.unwatch.
-     * To add a handler with its setter is null can resolve this issue.
-     */
-    setHandler( observer, exp, handler, null, cb );
-
-    for( let setter of setters ) {
-        ec.on( setter, cb );
-        setHandler( observer, exp, handler, setter, cb );
-    }
 }
 
 function unwatch( observer, exp, handler ) {
-    let map = handlers.get( observer );
-    if( !map ) return;
-    map = map.get( exp );
-    if( !map ) return;
-    const list = map.get( handler );
-    if( !list ) return;
-
-    for( let item of list ) {
-        ec.removeListener( item.setter, item.callback );
-    }
-
-    map.delete( handler );
-    callbacks.delete( list[ 0 ].callback );
+    soe$1.deleteHandler( observer, exp, handler );
 }
 
-function calc( observer, exp ) {
-    return expression( exp )( observer );
+function calc( observer, exp, defaultValue ) {
+    const val = expression( exp )( observer );
+    if( !isUndefined$3( defaultValue ) && ( val === null || isUndefined$3( val ) ) ) return defaultValue;
+    return val;
 }
 
 /** 
@@ -1263,6 +1498,8 @@ const arrMethods = Object.create( proto);
  * Array.prototype.sort
  * Array.prototype.reverse
  */
+
+let arrayTraverseTranslate = true;
 
 [ 'push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'fill' ].forEach( method => {
 
@@ -1306,7 +1543,7 @@ const arrMethods = Object.create( proto);
             if( inserted ) {
                 for( let item of inserted ) {
                     if( item && typeof item === 'object' ) {
-                        traverse( item );
+                        arrayTraverseTranslate && traverse( item );
                     }
                 }
             }
@@ -1319,11 +1556,14 @@ const arrMethods = Object.create( proto);
         enumerable : false,
         writable : true,
         configurable : true,
-        value( i, v ) {
+        value( i, v, trans ) {
             if( i >= this.length ) {
                 this.length = +i + 1;
             }
-            return this.splice( i, 1, v )[ 0 ];
+            arrayTraverseTranslate = trans;
+            const res = this.splice( i, 1, v )[ 0 ];
+            arrayTraverseTranslate = true;
+            return res;
         }
     } );
 
@@ -1369,9 +1609,7 @@ function translate( obj, key, val ) {
      * if the configurable of the property is false,
      * the property cannot be translated
      */
-    if( descriptor && !descriptor.configurable ) {
-        return;
-    }
+    if( descriptor && !descriptor.configurable ) return;
 
     const setter = descriptor && descriptor.set;
 
@@ -1466,7 +1704,7 @@ function traverse( obj ) {
     for( let key of keys ) {
         const val = obj[ key ];
         // to skip translating the indexes of array
-        if( isarr && integer( key ) && key >= 0 && key < obj.length ) continue;
+        if( isarr && isInteger( key ) && key >= 0 && key < obj.length ) continue;
 
         translate( obj, key, val );
 
@@ -1497,9 +1735,7 @@ const Observer = {
         }
 
         traverse( obj );
-        if( proto ) {
-            setPrototypeOf( obj, proto );
-        }
+        proto && setPrototypeOf( obj, proto );
         eventcenter.emit( 'add-observer', obj );         
         return obj;
     },
@@ -1512,13 +1748,13 @@ const Observer = {
      * @param {String} key
      * @param {*} value
      */
-    set( obj, key, value ) {
+    set( obj, key, value, trans = true ) {
 
         /**
          * if the object is an array and the key is a integer, set the value with [].$set
          */
-        if( isArray( obj ) && integer( key, true ) ) {
-            return obj.$set( key, value );
+        if( isArray( obj ) && isInteger( key, true ) ) {
+            return obj.$set( key, value, trans );
         }
 
         const old = obj[ key ];
@@ -1536,9 +1772,7 @@ const Observer = {
         /**
          * if the value is an object, to traverse the object with all paths in all observers
          */
-        if( isobj ) {
-            traverse( value );
-        }
+        isobj && trans && traverse( value );
         eventcenter.emit( 'set-value', obj, key, value, old );
     },
 
@@ -1586,8 +1820,8 @@ const Observer = {
         unwatch( observer, exp, handler );
     },
 
-    calc( observer, exp ) {
-        return calc( observer, exp );
+    calc( observer, exp, defaultValue ) {
+        return calc( observer, exp, defaultValue );
     },
 
     replace( observer, data ) {
@@ -1612,8 +1846,10 @@ const Observer = {
     }
 };
 
-var url = url => {
-    if( !isString( url ) ) return false;
+var isString$4 = str => typeof str === 'string' || str instanceof String;
+
+var isUrl = url => {
+    if( !isString$4( url ) ) return false;
     if( !/^(https?|ftp):\/\//i.test( url ) ) return false;
     const a = document.createElement( 'a' );
     a.href = url;
@@ -1812,11 +2048,11 @@ const attrs = [
 class URL$1 {
     constructor( path, base ) {
         if( window.URL ) {
-            const url$$1 = new window.URL( path, base );
-            if( !( 'searchParams' in url$$1 ) ) {
-                url$$1.searchParams = new URLSearchParams( url$$1.search ); 
+            const url = new window.URL( path, base );
+            if( !( 'searchParams' in url ) ) {
+                url.searchParams = new URLSearchParams( url.search ); 
             }
-            return url$$1;
+            return url;
         } else {
 
             if( URL$1.prototype.isPrototypeOf( path ) ) {
@@ -1830,7 +2066,7 @@ class URL$1 {
             path = String( path );
 
             if( base !== undefined ) {
-                if( !url( base ) ) {
+                if( !isUrl( base ) ) {
                     throw new TypeError( 'Failed to construct "URL": Invalid base URL' );
                 }
                 if( /^[a-zA-Z][0-9a-zA-Z.-]*:/.test( path ) ) {
@@ -1932,6 +2168,14 @@ function jsonp( url, options = {} ) {
     return promise;
 }
 
+function isUndefined$4() {
+    return arguments.length > 0 && typeof arguments[ 0 ] === 'undefined';
+}
+
+var asyncFunction = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
+
+var isFunction$6 = fn => ({}).toString.call( fn ) === '[object Function]' || asyncFunction( fn );
+
 function isURLSearchParams( obj ) {
     if( window.URLSearchParams.prototype.isPrototypeOf( obj ) ) return true;
     return URLSearchParams.prototype.isPrototypeOf( obj );
@@ -1960,26 +2204,28 @@ function mergeParams( dest, src ) {
 
 var isArguments = obj => ({}).toString.call( obj ) === '[object Arguments]';
 
-var isArray$1 = obj => Array.isArray( obj );
+var array = obj => Array.isArray( obj );
 
 var arrowFunction = fn => {
-    if( !isFunction( fn ) ) return false;
+    if( !isFunction$6( fn ) ) return false;
     return /^(?:function)?\s*\(?[\w\s,]*\)?\s*=>/.test( fn.toString() );
 };
 
 var isBoolean = s => typeof s === 'boolean';
 
-var isDate = date => ({}).toString.call( date ) === '[object Date]';
+var date = date => ({}).toString.call( date ) === '[object Date]';
 
 var email = str => /^(([^#$%&*!+-/=?^`{|}~<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/i.test( str );
 
-var isObject = obj => obj && typeof obj === 'object' && !Array.isArray( obj );
+var string = str => typeof str === 'string' || str instanceof String;
+
+var object = obj => obj && typeof obj === 'object' && !Array.isArray( obj );
 
 var empty = obj => {
-    if( isArray$1( obj ) || isString( obj ) ) {
+    if( array( obj ) || string( obj ) ) {
         return !obj.length;
     }
-    if( isObject( obj ) ) {
+    if( object( obj ) ) {
         return !Object.keys( obj ).length;
     }
     return !obj;
@@ -1989,15 +2235,37 @@ var error = e => ({}).toString.call( e ) === '[object Error]';
 
 var isFalse = ( obj, generalized = true ) => {
     if( isBoolean( obj ) || !generalized ) return !obj;
-    if( isString( obj ) ) {
+    if( string( obj ) ) {
         return [ 'false', 'no', '0', '', 'nay', 'n', 'disagree' ].indexOf( obj.toLowerCase() ) > -1;
     }
     return !obj;
 };
 
+var number = ( n, strict = false ) => {
+    if( ({}).toString.call( n ).toLowerCase() === '[object number]' ) {
+        return true;
+    }
+    if( strict ) return false;
+    return !isNaN( parseFloat( n ) ) && isFinite( n )  && !/\.$/.test( n );
+};
+
+var integer = ( n, strict = false ) => {
+
+    if( number( n, true ) ) return n % 1 === 0;
+
+    if( strict ) return false;
+
+    if( string( n ) ) {
+        if( n === '-0' ) return true;
+        return n.indexOf( '.' ) < 0 && String( parseInt( n ) ) === n;
+    }
+
+    return false;
+}
+
 var iterable = obj => {
     try {
-        return isFunction( obj[ Symbol.iterator ] );
+        return isFunction$6( obj[ Symbol.iterator ] );
     } catch( e ) {
         return false;
     }
@@ -2006,7 +2274,7 @@ var iterable = obj => {
 // https://github.com/jquery/jquery/blob/2d4f53416e5f74fa98e0c1d66b6f3c285a12f0ce/test/data/jquery-1.9.1.js#L480
 
 var plainObject = obj => {
-    if( !isObject( obj ) ) {
+    if( !object( obj ) ) {
         return false;
     }
 
@@ -2024,12 +2292,24 @@ var plainObject = obj => {
     return key === undefined || ({}).hasOwnProperty.call( obj, key );
 };
 
+var promise = p => p && isFunction$6( p.then );
+
+var regexp = reg => ({}).toString.call( reg ) === '[object RegExp]';
+
 var isTrue = ( obj, generalized = true ) => {
     if( isBoolean( obj ) || !generalized ) return !!obj;
-    if( isString( obj ) ) {
+    if( string( obj ) ) {
         return [ 'true', 'yes', 'ok', '1', 'yea', 'yep', 'y', 'agree' ].indexOf( obj.toLowerCase() ) > -1;
     }
     return !!obj;
+};
+
+var url = url => {
+    if( !string( url ) ) return false;
+    if( !/^(https?|ftp):\/\//i.test( url ) ) return false;
+    const a = document.createElement( 'a' );
+    a.href = url;
+    return /^(https?|ftp):/i.test( a.protocol );
 };
 
 var node = s => ( typeof Node === 'object' ? s instanceof Node : s && typeof s === 'object' && typeof s.nodeType === 'number' && typeof s.nodeName === 'string' )
@@ -2042,26 +2322,26 @@ var isWindow = obj => obj && obj === obj.window;
 
 var is = {
     arguments : isArguments,
-    array: isArray$1,
+    array,
     arrowFunction,
     asyncFunction,
     boolean : isBoolean,
-    date: isDate,
+    date,
     email,
     empty,
     error,
     false : isFalse,
-    function : isFunction,
+    function : isFunction$6,
     integer,
     iterable,
-    number: isNumber,
-    object: isObject,
+    number,
+    object,
     plainObject,
-    promise: isPromise,
+    promise,
     regexp,
-    string: isString,
+    string,
     true : isTrue,
-    undefined : isUndefined,
+    undefined : isUndefined$4,
     url,
     node,
     textNode,
@@ -2166,14 +2446,14 @@ var ajax = ( url, options = {} ) => {
             xhr = null;
         };
 
-        if( isFunction( onprogress ) ) {
+        if( isFunction$6( onprogress ) ) {
             xhr.onprogress = onprogress;
         }
 
         const isFormData = FormData.prototype.isPrototypeOf( data );
 
         for( let key in headers ) {
-            if( ( isUndefined( data ) || isFormData ) && key.toLowerCase() === 'content-type' ) {
+            if( ( isUndefined$4( data ) || isFormData ) && key.toLowerCase() === 'content-type' ) {
                 // if the data is undefined or it is an instance of FormData
                 // let the client to set "Content-Type" in header
                 continue;
@@ -2183,11 +2463,33 @@ var ajax = ( url, options = {} ) => {
 
         asynchronous && ( xhr.onreadystatechange = onreadystatechange );
 
-        xhr.send( isUndefined( data ) ? null : data );
+        xhr.send( isUndefined$4( data ) ? null : data );
 
         asynchronous || onreadystatechange();
     } );
 };
+
+var isObject = obj => obj && typeof obj === 'object' && !Array.isArray( obj );
+
+function isUndefined$5() {
+    return arguments.length > 0 && typeof arguments[ 0 ] === 'undefined';
+}
+
+var isNumber$1 = ( n, strict = false ) => {
+    if( ({}).toString.call( n ).toLowerCase() === '[object number]' ) {
+        return true;
+    }
+    if( strict ) return false;
+    return !isNaN( parseFloat( n ) ) && isFinite( n )  && !/\.$/.test( n );
+};
+
+var isAsyncFunction$6 = fn => ( {} ).toString.call( fn ) === '[object AsyncFunction]';
+
+var isFunction$7 = fn => ({}).toString.call( fn ) === '[object Function]' || isAsyncFunction$6( fn );
+
+var isDate = date => ({}).toString.call( date ) === '[object Date]';
+
+var isString$5 = str => typeof str === 'string' || str instanceof String;
 
 var md5 = ( () => {
     const safe_add = (x, y) => {
@@ -2347,7 +2649,7 @@ class Storage {
 
         for( let method of abstracts ) {
 
-            if( !isFunction( this[ method ] ) ) {
+            if( !isFunction$7( this[ method ] ) ) {
                 throw new TypeError( `The method "${method}" must be declared in every class extends from Cache` );
             }
         }
@@ -2355,7 +2657,7 @@ class Storage {
 
     format( data, options = {} ) {
         let string = true;
-        if( !isString( data ) ) {
+        if( !isString$5( data ) ) {
             string = false;
             data = JSON.stringify( data );
         }
@@ -2783,15 +3085,15 @@ class LocalCache {
                 opts = {};
             }
 
-            if( !isUndefined( options.type ) ) {
+            if( !isUndefined$5( options.type ) ) {
                 opts.type = options.type;
             }
 
-            if( !isUndefined( options.extra ) ) {
+            if( !isUndefined$5( options.extra ) ) {
                 opts.extra = options.extra;
             }
 
-            if( !isUndefined( options.mime ) ) {
+            if( !isUndefined$5( options.mime ) ) {
                 opts.mime = options.mime;
             }
             
@@ -2880,15 +3182,15 @@ class LocalCache {
 
             const { priority, length, ctime, type } = options;
 
-            if( !isUndefined( priority ) ) {
+            if( !isUndefined$5( priority ) ) {
                 if( data.priority < priority ) {
                     remove = true;
                 }
             }
 
-            if( !remove && !isUndefined( length ) ) {
+            if( !remove && !isUndefined$5( length ) ) {
                 const content = data.data;
-                if( isNumber( length ) ) {
+                if( isNumber$1( length ) ) {
                     if( content.length >= length ) {
                         remove = true;
                     }
@@ -2899,8 +3201,8 @@ class LocalCache {
                 }
             }
 
-            if( !remove && !isUndefined( ctime ) ) {
-                if( isDate( ctime ) || isNumber( ctime ) ) {
+            if( !remove && !isUndefined$5( ctime ) ) {
+                if( isDate( ctime ) || isNumber$1( ctime ) ) {
                     if( data.ctime < +ctime ) {
                         remove = true;
                     }
@@ -2921,7 +3223,7 @@ class LocalCache {
                 }
             }
 
-            if( !remove && isFunction( options.remove ) ) {
+            if( !remove && isFunction$7( options.remove ) ) {
                 if( options.remove( data, key ) === true ) {
                     remove = true;
                 }
@@ -2943,7 +3245,7 @@ LocalCache.STORAGES = [ 'page', 'session', 'persistent' ];
 
 const localcache = new LocalCache( 'BIU-REQUEST-VERSION-1.0.0' );
 
-function set( key, data, options ) {
+function set$1( key, data, options ) {
     const url = new URL( key );
     url.searchParams.sort();
 
@@ -2971,7 +3273,7 @@ function get( key, options = {} ) {
     } );
 }
 
-var lc = { localcache, set, get };
+var lc = { localcache, set: set$1, get };
 
 function resJSON( xhr ) {
     return /^application\/json;/i.test( xhr.getResponseHeader( 'content-type' ) );
@@ -3095,6 +3397,8 @@ function post( url, options = {} ) {
 
 var biu = { request, get: get$1, post, ajax, jsonp };
 
+var isArray$1 = obj => Array.isArray( obj );
+
 class Model extends Extension {
     constructor( init, config = {} ) {
         super( init, Object.assign( { type : 'extension-model' }, config ) );
@@ -3136,7 +3440,7 @@ class Model extends Extension {
                 storage : this.storage || false
             } );
         }
-        if( this.data && isFunction( this.data ) ) {
+        if( this.data && isFunction$2( this.data ) ) {
             return Promise$1.resolve( this.data() );
         }
         return Promise$1.resolve( this.data || {} );
@@ -3265,7 +3569,7 @@ class Model extends Extension {
 
             validation[ name ].$validating = true;
 
-            if( isUndefined( val ) ) {
+            if( isUndefined$2( val ) ) {
                 val = Observer.calc( this.$data, bound.path );
             }
 
@@ -3274,14 +3578,14 @@ class Model extends Extension {
                 let func;
                 let args = [ val ];
 
-                if( isFunction( this.$validators[ key ] ) ) {
+                if( isFunction$2( this.$validators[ key ] ) ) {
                     func = this.$validators[ key ];
                     args.push( ...( isArray$1( rule ) ? rule : [ rule ] ) );
                 } else {
                     func = rule;
                 }
 
-                if( isFunction( func ) ) {
+                if( isFunction$2( func ) ) {
                     steps.push( () => {
                         const result = func.call( this, ...args );
                         if( isPromise( result ) ) {
@@ -3333,7 +3637,7 @@ class Model extends Extension {
             const item = this[ key ];
 
             Object.defineProperty( methods, key, {
-                value : isFunction( item ) ? item.bind( this ) : item
+                value : isFunction$2( item ) ? item.bind( this ) : item
             } );
         }
 
@@ -3343,11 +3647,11 @@ class Model extends Extension {
     $validator( name, handler ) {
         if( isPromise( handler ) ) {
             return handler.then( res => {
-                this.$validators[ name ] = isFunction( res.expose ) ? res.expose() : res;
+                this.$validators[ name ] = isFunction$2( res.expose ) ? res.expose() : res;
             } );
         }
 
-        if( isString( handler ) ) {
+        if( isString$1( handler ) ) {
             console.log( handler );
         }
 
@@ -3484,10 +3788,10 @@ class Model extends Extension {
 
         let res;
 
-        if( isFunction( method ) ) {
+        if( isFunction$2( method ) ) {
             res = method.call( this, ...args );
         } else {
-            if( !isFunction( this[ method ] ) ) {
+            if( !isFunction$2( this[ method ] ) ) {
                 console.error( `Cannot find method "${method}".` );
             }
             res = this[ method ]( ...args );
